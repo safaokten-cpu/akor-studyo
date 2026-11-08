@@ -1,3 +1,8 @@
+const notalar = [
+  'do', 'do_diyez', 're', 're_diyez', 'mi', 'fa',
+  'fa_diyez', 'sol', 'sol_diyez', 'la', 'la_diyez', 'si'
+];
+
 const globalIsimler = [
   'C', 'C#', 'D', 'D#', 'E', 'F',
   'F#', 'G', 'G#', 'A', 'A#', 'B'
