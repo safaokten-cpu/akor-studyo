@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'akor.dart';
+import 'ses.dart';
 
 void main() => runApp(const AkorStudyo());
 
@@ -24,6 +25,9 @@ class _AkorEkraniState extends State<AkorEkrani> {
   @override
   Widget build(BuildContext context) {
     final sonuc = akorNotalari(kok, tur);
+    final akorAdi = globalIsimler[kok] + (tur == 'min' ? 'm' : '');
+    final globalNotalar = sonuc.map(globalIsim).join(' - ');
+
     return Scaffold(
       appBar: AppBar(title: const Text('Akor Stüdyo')),
       body: Padding(
@@ -37,7 +41,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
               children: [
                 for (int i = 0; i < 12; i++)
                   ChoiceChip(
-                    label: Text(notalar[i]),
+                    label: Text(globalIsimler[i]),
                     selected: kok == i,
                     onSelected: (_) => setState(() => kok = i),
                   ),
@@ -54,8 +58,13 @@ class _AkorEkraniState extends State<AkorEkrani> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Akorun notaları: ${sonuc.join(' - ')}',
+              '$akorAdi: $globalNotalar',
               style: const TextStyle(fontSize: 22),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => akorCal('gitar', sonuc),
+              child: const Text('Çal'),
             ),
           ],
         ),
