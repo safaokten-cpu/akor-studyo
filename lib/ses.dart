@@ -2,9 +2,44 @@ import 'package:audioplayers/audioplayers.dart';
 import 'akor.dart';
 import 'kalip.dart';
 
+const tabanOktav = 4;
+
 final List<AudioPlayer> _havuz =
     List.generate(24, (_) => AudioPlayer());
 int _sira = 0;
+
+List<String> _tumDosyalar() {
+  const notaAdlari = [
+    'do', 'do_diyez', 're', 're_diyez', 'mi', 'fa',
+    'fa_diyez', 'sol', 'sol_diyez', 'la', 'la_diyez', 'si'
+  ];
+  final liste = <String>[];
+  for (int m = 48; m <= 78; m++) {
+    final ad = '${notaAdlari[m % 12]}_${m ~/ 12}';
+    liste.add('sesler/gitar_$ad.wav');
+    liste.add('sesler/piyano_$ad.wav');
+  }
+  for (final d in davulSesleri) {
+    liste.add('sesler/davul_$d.wav');
+  }
+  return liste;
+}
+
+Future<void> seslerHazirla() async {
+  try {
+    await AudioPlayer.global.setAudioContext(
+      AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers)
+          .build(),
+    );
+  } catch (e) {
+    // Ayar uygulanamazsa varsayılanla devam et.
+  }
+  try {
+    await AudioCache.instance.loadAll(_tumDosyalar());
+  } catch (e) {
+    // Önyükleme olmazsa sesler ilk çalışta yüklenir.
+  }
+}
 
 Future<void> sesCal(String dosya, double seviye) async {
   final p = _havuz[_sira];
@@ -19,7 +54,7 @@ Future<void> sesCal(String dosya, double seviye) async {
 }
 
 void akorOnizle(Akor akor, String enstruman) {
-  final tonlar = akor.sesleri(3);
+  final tonlar = akor.sesleri(tabanOktav);
   for (int n = 0; n < tonlar.length; n++) {
     final t = tonlar[n];
     Future.delayed(
@@ -36,7 +71,7 @@ void kalipAdimiCal(Kalip k, Akor akor, List<int> olaylar, double seviye) {
     }
     return;
   }
-  final tonlar = akor.sesleri(3);
+  final tonlar = akor.sesleri(tabanOktav);
   final secilen = <NotaSesi>[];
   for (final o in olaylar) {
     if (o == hepsiKodu) {
