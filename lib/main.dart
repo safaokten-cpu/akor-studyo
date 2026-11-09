@@ -22,7 +22,6 @@ class AkorEkrani extends StatefulWidget {
 
 class _AkorEkraniState extends State<AkorEkrani> {
   int ton = 2;
-  int nota = 5;
   final List<Akor?> tablo = List<Akor?>.filled(16, null);
   int secili = 0;
   Durum durum = Durum.durdu;
@@ -153,18 +152,10 @@ class _AkorEkraniState extends State<AkorEkrani> {
             children: [
               const Text('Ton:'),
               notaSecici(ton, (i) => setState(() => ton = i)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text('${globalIsimler[ton]} tonunun akorları:'),
               yatayStrip([
-                for (final a in tonAkorlari(ton)) akorChip(a),
-              ]),
-              const SizedBox(height: 12),
-              const Text('Nota seç:'),
-              notaSecici(nota, (i) => setState(() => nota = i)),
-              const SizedBox(height: 8),
-              Text('${globalIsimler[nota]} akor çeşitleri:'),
-              yatayStrip([
-                for (final t in akorTurleri) akorChip(Akor(nota, t.kod)),
+                for (final t in akorTurleri) akorChip(Akor(ton, t.kod)),
               ]),
               const SizedBox(height: 8),
             ],
