@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'akor.dart';
+import 'kalip.dart';
 import 'ses.dart';
 
 const hucreSayisi = 16;
 const enFazlaSayfa = 8;
+const enFazlaParca = 6;
 
 void main() => runApp(const AkorStudyo());
 
@@ -32,6 +34,15 @@ class _AkorEkraniState extends State<AkorEkrani> {
   int calanIndex = -1;
   int oynatmaNo = 0;
 
+  int tempo = 100;
+  final List<Parca> parcalar = [
+    Parca(kaliplar.firstWhere((k) => k.enstruman == 'gitar' && k.tarz == 'Pop')),
+    Parca(kaliplar.firstWhere((k) => k.enstruman == 'davul' && k.tarz == 'Pop')),
+  ];
+  String secEns = 'gitar';
+  String secTarz = 'Tümü';
+  Kalip? secKalip;
+
   List<Akor?> get tablo => sayfalar[aktifSayfa];
 
   @override
@@ -45,7 +56,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
       tablo[secili] = a;
       if (secili < hucreSayisi - 1) secili++;
     });
-    akorCal('gitar', a.notaListesi);
+    akorOnizle(a, secEns == 'davul' ? 'gitar' : secEns);
   }
 
   int sonDoluIndex() {
@@ -68,6 +79,8 @@ class _AkorEkraniState extends State<AkorEkrani> {
     final benimNo = ++oynatmaNo;
     int i = (durum == Durum.duraklatildi && calanIndex >= 0) ? calanIndex : 0;
     setState(() => durum = Durum.caliyor);
+    final saat = Stopwatch()..start();
+    int hedefMs = 0;
     while (benimNo == oynatmaNo && mounted) {
       final son = sonDoluIndex();
       if (son < 0) break;
@@ -78,8 +91,20 @@ class _AkorEkraniState extends State<AkorEkrani> {
           calanIndex = i;
           aktifSayfa = i ~/ hucreSayisi;
         });
-        akorCal('gitar', akor.notaListesi);
-        await Future.delayed(const Duration(milliseconds: 2000));
+        for (int adim = 0; adim < 16; adim++) {
+          if (benimNo != oynatmaNo || !mounted) return;
+          for (final p in parcalar) {
+            if (p.sessiz) continue;
+            final olaylar = p.kalip.adimlar[adim];
+            if (olaylar.isEmpty) continue;
+            kalipAdimiCal(p.kalip, akor, olaylar, p.ses);
+          }
+          hedefMs += 15000 ~/ tempo;
+          final bekle = hedefMs - saat.elapsedMilliseconds;
+          if (bekle > 0) {
+            await Future.delayed(Duration(milliseconds: bekle));
+          }
+        }
       }
       i++;
     }
@@ -272,6 +297,96 @@ class _AkorEkraniState extends State<AkorEkrani> {
     );
   }
 
+  Widget parcaSatiri(int p) {
+    final parca = parcalar[p];
+    return Row(
+      children: [
+        IconButton(
+          onPressed: () => setState(() => parca.sessiz = !parca.sessiz),
+          icon: Icon(parca.sessiz ? Icons.volume_off : Icons.volume_up),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                parca.kalip.etiket,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Slider(
+                value: parca.ses,
+                onChanged: (v) => setState(() => parca.ses = v),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: () => setState(() => parcalar.removeAt(p)),
+          icon: const Icon(Icons.close),
+        ),
+      ],
+    );
+  }
+
+  Widget soundsBolumu() {
+    final filtre = kaliplar
+        .where((k) =>
+            k.enstruman == secEns && (secTarz == 'Tümü' || k.tarz == secTarz))
+        .toList();
+    final gecerli = filtre.contains(secKalip)
+        ? secKalip
+        : (filtre.isNotEmpty ? filtre.first : null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Enstrüman:'),
+        DropdownButton<String>(
+          isExpanded: true,
+          value: secEns,
+          items: [
+            for (final e in enstrumanAdlari.entries)
+              DropdownMenuItem(value: e.key, child: Text(e.value)),
+          ],
+          onChanged: (v) => setState(() => secEns = v ?? secEns),
+        ),
+        const SizedBox(height: 8),
+        const Text('Tarz:'),
+        DropdownButton<String>(
+          isExpanded: true,
+          value: secTarz,
+          items: [
+            for (final t in ['Tümü', ...tarzlar])
+              DropdownMenuItem(value: t, child: Text(t)),
+          ],
+          onChanged: (v) => setState(() => secTarz = v ?? secTarz),
+        ),
+        const SizedBox(height: 8),
+        const Text('Kalıp:'),
+        DropdownButton<Kalip>(
+          isExpanded: true,
+          value: gecerli,
+          items: [
+            for (final k in filtre)
+              DropdownMenuItem(value: k, child: Text(k.ad)),
+          ],
+          onChanged: (k) => setState(() => secKalip = k),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: FilledButton.icon(
+            onPressed: (gecerli == null || parcalar.length >= enFazlaParca)
+                ? null
+                : () => setState(() => parcalar.add(Parca(gecerli!))),
+            icon: const Icon(Icons.add),
+            label: const Text('Parçalara ekle'),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -354,23 +469,39 @@ class _AkorEkraniState extends State<AkorEkrani> {
               ],
             ),
           ),
-          const ExpansionTile(
-            title: Text('Loop Page'),
+          ExpansionTile(
+            title: const Text('Loop Page'),
+            childrenPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             children: [
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Parça listesi burada olacak (Ders 7).'),
+              Row(
+                children: [
+                  Text('Tempo: $tempo'),
+                  Expanded(
+                    child: Slider(
+                      min: 60,
+                      max: 180,
+                      divisions: 120,
+                      label: '$tempo',
+                      value: tempo.toDouble(),
+                      onChanged: (v) => setState(() => tempo = v.round()),
+                    ),
+                  ),
+                ],
               ),
+              if (parcalar.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('Parça yok. Sounds menüsünden parça ekle.'),
+                ),
+              for (int p = 0; p < parcalar.length; p++) parcaSatiri(p),
             ],
           ),
-          const ExpansionTile(
-            title: Text('Sounds'),
-            children: [
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Enstrüman ve çalış tarzı burada olacak (Ders 8).'),
-              ),
-            ],
+          ExpansionTile(
+            title: const Text('Sounds'),
+            childrenPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            children: [soundsBolumu()],
           ),
         ],
       ),
