@@ -10,6 +10,12 @@ const globalIsimler = [
 
 String globalIsim(String nota) => globalIsimler[notalar.indexOf(nota)];
 
+class NotaSesi {
+  final String nota;
+  final int oktav;
+  const NotaSesi(this.nota, this.oktav);
+}
+
 class AkorTuru {
   final String kod;
   final String ek;
@@ -50,6 +56,13 @@ class Akor {
 
   String get adi => globalIsimler[kok] + turBul(tur).ek;
   List<String> get notaListesi => akorNotalari(kok, tur);
+
+  List<NotaSesi> sesleri(int tabanOktav) {
+    return turBul(tur).aralik.map((a) {
+      final yarimSes = tabanOktav * 12 + kok + a;
+      return NotaSesi(notalar[yarimSes % 12], yarimSes ~/ 12);
+    }).toList();
+  }
 }
 
 List<Akor> tonAkorlari(int ton) {
