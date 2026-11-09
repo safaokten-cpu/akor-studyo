@@ -7,7 +7,11 @@ const hucreSayisi = 16;
 const enFazlaSayfa = 8;
 const enFazlaParca = 6;
 
-void main() => runApp(const AkorStudyo());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await seslerHazirla();
+  runApp(const AkorStudyo());
+}
 
 class AkorStudyo extends StatelessWidget {
   const AkorStudyo({super.key});
