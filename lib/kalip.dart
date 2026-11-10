@@ -58,6 +58,7 @@ class Parca {
   Parca(this.kalip);
 }
 
+// ---- Arpej aileleri ----
 const _arpA = {
   '2/4': 'p i m a',
   '4/4': 'p i m a p i m a',
@@ -73,6 +74,33 @@ const _arpC = {
 const _arpD = {
   '5/4': 'p i m a m i p i m a',
 };
+// Rock: başparmak sürekli bas çalar.
+const _arpRock = {
+  '2/4': 'p i p m',
+  '3/4': 'p i p m p a',
+  '4/4': 'p i p m p i p a',
+  '5/4': 'p i p m p i p m p a',
+  '6/8': 'p i m p m i',
+  '7/8': 'p i p m p i m',
+  '12/8': 'p i m p i m p i m p i m',
+};
+// Pop: başparmak ve yüzük parmağı birlikte başlar (yayılan).
+const _arpPop = {
+  '2/4': 'p+a i m i',
+  '3/4': 'p+a i m i m i',
+  '4/4': 'p+a i m i p+a i m i',
+  '5/4': 'p+a i m i m p+a i m i m',
+  '6/8': 'p+a i m i m i',
+  '7/8': 'p+a i m i p+a m i',
+  '12/8': 'p+a i m i m i p+a i m i m i',
+};
+
+List<Kalip> _klasikArpejler(String ens, String tarz) => [
+      Kalip('Arpej p-i-m-a', ens, tarz, _arpA),
+      Kalip('Arpej p-i-m-a-m-i', ens, tarz, _arpB),
+      Kalip('Arpej p-i-m-i-a-m-i', ens, tarz, _arpC),
+      Kalip('Arpej 5/4', ens, tarz, _arpD),
+    ];
 
 String _davulUret(String tip, List<int> g) {
   final n = g.length;
@@ -140,6 +168,8 @@ final List<Kalip> kaliplar = [
     '7/8': 'b b b b b b b',
     '12/8': 'b . b b . b b . b b . b',
   }),
+  Kalip('Arpej bas ağırlıklı', 'gitar', 'Rock', _arpRock),
+  ..._klasikArpejler('gitar', 'Rock'),
   Kalip('Strum', 'gitar', 'Pop', {
     '2/4': 'd . d u',
     '3/4': 'd . d u . u',
@@ -149,10 +179,9 @@ final List<Kalip> kaliplar = [
     '7/8': 'd . d . d u u',
     '12/8': 'd . . d . u d . . d . u',
   }),
-  Kalip('Arpej p-i-m-a', 'gitar', 'Akustik', _arpA),
-  Kalip('Arpej p-i-m-a-m-i', 'gitar', 'Akustik', _arpB),
-  Kalip('Arpej p-i-m-i-a-m-i', 'gitar', 'Akustik', _arpC),
-  Kalip('Arpej 5/4', 'gitar', 'Akustik', _arpD),
+  Kalip('Arpej yayılan', 'gitar', 'Pop', _arpPop),
+  ..._klasikArpejler('gitar', 'Pop'),
+  ..._klasikArpejler('gitar', 'Akustik'),
   Kalip('Bas-akor', 'gitar', 'Country', {
     '2/4': 'p . c .',
     '3/4': 'p . c . c .',
@@ -171,6 +200,7 @@ final List<Kalip> kaliplar = [
     '7/8': 'p i P m p i m',
     '12/8': 'p i m P i m p i m P i m',
   }),
+  ..._klasikArpejler('gitar', 'Country'),
   // ---- Piyano ----
   Kalip('Sinkop', 'piyano', 'Rock', {
     '2/4': 'c . . c',
@@ -181,6 +211,8 @@ final List<Kalip> kaliplar = [
     '7/8': 'c . . c . c .',
     '12/8': 'c . . c . . c . . . c .',
   }),
+  Kalip('Arpej bas ağırlıklı', 'piyano', 'Rock', _arpRock),
+  ..._klasikArpejler('piyano', 'Rock'),
   Kalip('Blok akor', 'piyano', 'Pop', {
     '2/4': 'c . h .',
     '3/4': 'c . h . h .',
@@ -190,10 +222,9 @@ final List<Kalip> kaliplar = [
     '7/8': 'c . h . c . h',
     '12/8': 'c . . h . . c . . h . .',
   }),
-  Kalip('Arpej p-i-m-a', 'piyano', 'Akustik', _arpA),
-  Kalip('Arpej p-i-m-a-m-i', 'piyano', 'Akustik', _arpB),
-  Kalip('Arpej p-i-m-i-a-m-i', 'piyano', 'Akustik', _arpC),
-  Kalip('Arpej 5/4', 'piyano', 'Akustik', _arpD),
+  Kalip('Arpej yayılan', 'piyano', 'Pop', _arpPop),
+  ..._klasikArpejler('piyano', 'Pop'),
+  ..._klasikArpejler('piyano', 'Akustik'),
   Kalip('Ritim', 'piyano', 'Country', {
     '2/4': 'p . h .',
     '3/4': 'p . h . h .',
@@ -203,6 +234,7 @@ final List<Kalip> kaliplar = [
     '7/8': 'p . h . P . h',
     '12/8': 'p . h P . h p . h P . h',
   }),
+  ..._klasikArpejler('piyano', 'Country'),
   // ---- Davul ----
   Kalip('Rock', 'davul', 'Rock', _davulDesenleri('rock')),
   Kalip('Pop', 'davul', 'Pop', _davulDesenleri('pop')),
