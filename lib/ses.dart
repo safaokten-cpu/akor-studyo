@@ -137,21 +137,21 @@ void _gitarCal(Akor akor, List<String> olaylar, double seviye) {
         break;
       case 'd':
         for (int j = 0; j < n; j++) {
-          _gitarNota(v[j], seviye * 0.85, j * 14);
+          _gitarNota(v[j], seviye * 0.85, j * 4);
         }
         break;
       case 'u':
         final alt = n > 4 ? n - 4 : 0;
         int sira = 0;
         for (int j = n - 1; j >= alt; j--) {
-          _gitarNota(v[j], seviye * 0.7, sira * 12);
+          _gitarNota(v[j], seviye * 0.7, sira * 3);
           sira++;
         }
         break;
       case 'b':
         final ust = n < 3 ? n : 3;
         for (int j = 0; j < ust; j++) {
-          _gitarNota(v[j], seviye * 0.9, j * 12);
+          _gitarNota(v[j], seviye * 0.9, j * 3);
         }
         break;
     }
