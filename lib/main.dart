@@ -39,9 +39,12 @@ class _AkorEkraniState extends State<AkorEkrani> {
   int oynatmaNo = 0;
 
   int tempo = 100;
+  Olcu olcu = olculer[2];
   final List<Parca> parcalar = [
-    Parca(kaliplar.firstWhere((k) => k.enstruman == 'gitar' && k.tarz == 'Pop')),
-    Parca(kaliplar.firstWhere((k) => k.enstruman == 'davul' && k.tarz == 'Pop')),
+    Parca(kaliplar
+        .firstWhere((k) => k.enstruman == 'gitar' && k.ad == 'Strum')),
+    Parca(kaliplar
+        .firstWhere((k) => k.enstruman == 'davul' && k.tarz == 'Pop')),
   ];
   String secEns = 'gitar';
   String secTarz = 'Tümü';
@@ -84,30 +87,38 @@ class _AkorEkraniState extends State<AkorEkrani> {
     int i = (durum == Durum.duraklatildi && calanIndex >= 0) ? calanIndex : 0;
     setState(() => durum = Durum.caliyor);
     final saat = Stopwatch()..start();
-    int hedefMs = 0;
+    double hedefMs = 0;
     while (benimNo == oynatmaNo && mounted) {
       final son = sonDoluIndex();
       if (son < 0) break;
       if (i > son) i = 0;
       final akor = akorAl(i);
+      setState(() {
+        calanIndex = i;
+        aktifSayfa = i ~/ hucreSayisi;
+      });
+      final slotlar = olcu.slot;
+      final planlar = <Parca, List<List<String>>>{};
       if (akor != null) {
-        setState(() {
-          calanIndex = i;
-          aktifSayfa = i ~/ hucreSayisi;
-        });
-        for (int adim = 0; adim < 16; adim++) {
-          if (benimNo != oynatmaNo || !mounted) return;
-          for (final p in parcalar) {
-            if (p.sessiz) continue;
-            final olaylar = p.kalip.adimlar[adim];
-            if (olaylar.isEmpty) continue;
+        for (final p in parcalar) {
+          if (p.sessiz || !p.kalip.olcuVar(olcu.ad)) continue;
+          planlar[p] = p.kalip.adimlar(olcu.ad);
+        }
+      }
+      for (int adim = 0; adim < slotlar; adim++) {
+        if (benimNo != oynatmaNo || !mounted) return;
+        if (akor != null) {
+          planlar.forEach((p, adimlar) {
+            if (adim >= adimlar.length) return;
+            final olaylar = adimlar[adim];
+            if (olaylar.isEmpty) return;
             kalipAdimiCal(p.kalip, akor, olaylar, p.ses);
-          }
-          hedefMs += 15000 ~/ tempo;
-          final bekle = hedefMs - saat.elapsedMilliseconds;
-          if (bekle > 0) {
-            await Future.delayed(Duration(milliseconds: bekle));
-          }
+          });
+        }
+        hedefMs += 30000 / tempo;
+        final bekle = (hedefMs - saat.elapsedMilliseconds).round();
+        if (bekle > 0) {
+          await Future.delayed(Duration(milliseconds: bekle));
         }
       }
       i++;
@@ -303,6 +314,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
 
   Widget parcaSatiri(int p) {
     final parca = parcalar[p];
+    final olcudeVar = parca.kalip.olcuVar(olcu.ad);
     return Row(
       children: [
         IconButton(
@@ -317,6 +329,11 @@ class _AkorEkraniState extends State<AkorEkrani> {
                 parca.kalip.etiket,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
+              if (!olcudeVar)
+                Text(
+                  '${olcu.ad} ölçüsünde yok, çalmaz',
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                ),
               Slider(
                 value: parca.ses,
                 onChanged: (v) => setState(() => parca.ses = v),
@@ -335,7 +352,9 @@ class _AkorEkraniState extends State<AkorEkrani> {
   Widget soundsBolumu() {
     final filtre = kaliplar
         .where((k) =>
-            k.enstruman == secEns && (secTarz == 'Tümü' || k.tarz == secTarz))
+            k.enstruman == secEns &&
+            k.olcuVar(olcu.ad) &&
+            (secTarz == 'Tümü' || k.tarz == secTarz))
         .toList();
     final gecerli = filtre.contains(secKalip)
         ? secKalip
@@ -366,7 +385,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
           onChanged: (v) => setState(() => secTarz = v ?? secTarz),
         ),
         const SizedBox(height: 8),
-        const Text('Kalıp:'),
+        Text('Kalıp (${olcu.ad} ölçüsüne uyanlar):'),
         DropdownButton<Kalip>(
           isExpanded: true,
           value: gecerli,
@@ -445,7 +464,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
                 ],
               ),
               const Text(
-                'Dokun: kutuyu seç. Basılı tut: kutuyu sil.',
+                'Dokun: kutuyu seç. Basılı tut: kutuyu sil. Her kutu bir ölçü.',
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 4),
@@ -478,6 +497,24 @@ class _AkorEkraniState extends State<AkorEkrani> {
             childrenPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             children: [
+              Row(
+                children: [
+                  const Text('Ölçü: '),
+                  DropdownButton<String>(
+                    value: olcu.ad,
+                    items: [
+                      for (final o in olculer)
+                        DropdownMenuItem(value: o.ad, child: Text(o.ad)),
+                    ],
+                    onChanged: (v) => setState(() {
+                      olcu = olculer.firstWhere(
+                        (o) => o.ad == v,
+                        orElse: () => olcu,
+                      );
+                    }),
+                  ),
+                ],
+              ),
               Row(
                 children: [
                   Text('Tempo: $tempo'),
