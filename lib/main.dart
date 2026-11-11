@@ -93,26 +93,39 @@ class _AkorEkraniState extends State<AkorEkrani> {
       if (son < 0) break;
       if (i > son) i = 0;
       final akor = akorAl(i);
-      setState(() {
-        calanIndex = i;
-        aktifSayfa = i ~/ hucreSayisi;
-      });
-      final slotlar = olcu.slot;
+      final sayfa = i ~/ hucreSayisi;
+
+      // Çalacak parçaların planı. Kutu süresi gitar/piyano kalıbının
+      // uzunluğuna göre belirlenir (en uzun olan). Melodik parça yoksa
+      // (sadece davul) kutu bir tam ölçü sürer.
       final planlar = <Parca, List<List<String>>>{};
-      if (akor != null) {
-        for (final p in parcalar) {
-          if (p.sessiz || !p.kalip.olcuVar(olcu.ad)) continue;
-          planlar[p] = p.kalip.adimlar(olcu.ad);
+      int enUzun = 0;
+      for (final p in parcalar) {
+        if (p.sessiz || !p.kalip.olcuVar(olcu.ad)) continue;
+        final a = p.kalip.adimlar(olcu.ad);
+        if (a.isEmpty) continue;
+        planlar[p] = a;
+        if (p.kalip.enstruman != 'davul' && a.length > enUzun) {
+          enUzun = a.length;
         }
       }
+      final slotlar = enUzun > 0 ? enUzun : olcu.slot;
+
       for (int adim = 0; adim < slotlar; adim++) {
         if (benimNo != oynatmaNo || !mounted) return;
         if (akor != null) {
           planlar.forEach((p, adimlar) {
-            if (adim >= adimlar.length) return;
-            final olaylar = adimlar[adim];
+            // Kısa kalıp tekrar eder, uzun kalıp (davul) kutu boyunda kesilir.
+            final olaylar = adimlar[adim % adimlar.length];
             if (olaylar.isEmpty) return;
             kalipAdimiCal(p.kalip, akor, olaylar, p.ses);
+          });
+        }
+        // Ekranı, kutunun ilk vuruşu çaldıktan sonra güncelle.
+        if (adim == 0 && (calanIndex != i || aktifSayfa != sayfa)) {
+          setState(() {
+            calanIndex = i;
+            aktifSayfa = sayfa;
           });
         }
         hedefMs += 30000 / tempo;
@@ -464,7 +477,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
                 ],
               ),
               const Text(
-                'Dokun: kutuyu seç. Basılı tut: kutuyu sil. Her kutu bir ölçü.',
+                'Dokun: kutuyu seç. Basılı tut: kutuyu sil. Kutunun süresi seçili arpejin uzunluğuna göre değişir.',
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 4),
