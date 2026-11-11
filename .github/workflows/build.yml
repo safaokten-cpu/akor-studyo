@@ -21,10 +21,17 @@ jobs:
       - name: Sesleri ac
         run: |
           mkdir -p assets/sesler
-          if [ -f sesler.zip ]; then unzip -o -q sesler.zip -d assets/sesler; fi
+          if [ -f sesler.zip ]; then unzip -o -j -q sesler.zip -d assets/sesler; fi
           for z in sesler_*.zip; do
-            if [ -f "$z" ]; then unzip -o -q "$z" -d assets/sesler; fi
+            if [ -f "$z" ]; then
+              echo "Aciliyor: $z"
+              unzip -o -j -q "$z" -d assets/sesler
+            fi
           done
+          echo "Toplam dosya:"
+          ls assets/sesler | wc -l
+          echo "Gitar, piyano, davul ornekleri:"
+          ls -la assets/sesler | grep -E "gitar_mi_4|piyano_do_4|piyano_fa_diyez_6|davul_" || true
       - run: flutter create --platforms=android --project-name akor_studyo .
       - run: flutter pub get
       - run: flutter build apk --release
