@@ -41,6 +41,13 @@ class Kalip {
 
   bool olcuVar(String olcu) => desenler.containsKey(olcu);
 
+  // Desenin adım (8'lik) sayısı. Akor kutusunun süresi buna göre belirlenir.
+  int uzunluk(String olcu) {
+    final d = desenler[olcu];
+    if (d == null) return 0;
+    return d.split(' ').length;
+  }
+
   List<List<String>> adimlar(String olcu) {
     final d = desenler[olcu];
     if (d == null) return const [];
@@ -59,13 +66,14 @@ class Parca {
 }
 
 // ---- Arpej aileleri ----
-// Her desendeki kelime sayısı ölçünün 8'lik sayısına eşit olmalı:
-// 2/4=4, 3/4=6, 4/4=8, 5/4=10, 6/8=6, 7/8=7, 12/8=12.
+// Desendeki kelime sayısı = akor kutusunun süresi (8'lik adım sayısı).
+// Ölçü başına tam ölçü: 2/4=4, 3/4=6, 4/4=8, 5/4=10, 6/8=6, 7/8=7, 12/8=12.
+// 4/4'teki 'p i m a' bilerek 4 adım: akor yarım ölçüde değişir.
 
 // Klasik: p-i-m-a
 const _arpA = {
   '2/4': 'p i m a',
-  '4/4': 'p i m a p i m a',
+  '4/4': 'p i m a',
 };
 // Klasik: p-i-m-a-m-i (vals / 6/8)
 const _arpB = {
