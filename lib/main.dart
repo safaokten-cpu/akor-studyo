@@ -7,6 +7,33 @@ const hucreSayisi = 16;
 const enFazlaSayfa = 8;
 const enFazlaParca = 6;
 
+const _neon = Color(0xFF00E5FF);
+const _mor = Color(0xFFB388FF);
+const _pembe = Color(0xFFFF4081);
+const _cam = Color(0x1FFFFFFF);
+const _kenar = Color(0x33FFFFFF);
+
+// Akor adının ilk harfinden bir renk üretir (her kök farklı renk).
+Color akorRengi(String? adi,
+    {double a = 1.0, double s = 0.65, double v = 0.9}) {
+  final h = (adi == null || adi.isEmpty)
+      ? 260.0
+      : ((adi.codeUnitAt(0) * 47) % 360).toDouble();
+  return HSVColor.fromAHSV(a, h, s, v).toColor();
+}
+
+IconData ensIkon(String e) => e == 'gitar'
+    ? Icons.music_note
+    : e == 'piyano'
+        ? Icons.piano
+        : Icons.graphic_eq;
+
+Color ensRenk(String e) => e == 'gitar'
+    ? Colors.amberAccent
+    : e == 'piyano'
+        ? _neon
+        : _pembe;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await seslerHazirla();
@@ -17,7 +44,18 @@ class AkorStudyo extends StatelessWidget {
   const AkorStudyo({super.key});
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(home: AkorEkrani());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7C4DFF),
+          brightness: Brightness.dark,
+        ),
+      ),
+      home: const AkorEkrani(),
+    );
   }
 }
 
@@ -38,6 +76,10 @@ class _AkorEkraniState extends State<AkorEkrani> {
   int calanIndex = -1;
   int oynatmaNo = 0;
 
+  // Vuruş çubuğu için hafif bildirimciler (tüm ekranı yeniden çizdirmez).
+  final ValueNotifier<int> adimNo = ValueNotifier<int>(-1);
+  final ValueNotifier<int> kutuSlot = ValueNotifier<int>(0);
+
   int tempo = 100;
   Olcu olcu = olculer[2];
   final List<Parca> parcalar = [
@@ -55,6 +97,8 @@ class _AkorEkraniState extends State<AkorEkrani> {
   @override
   void dispose() {
     oynatmaNo++;
+    adimNo.dispose();
+    kutuSlot.dispose();
     super.dispose();
   }
 
@@ -110,6 +154,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
         }
       }
       final slotlar = enUzun > 0 ? enUzun : olcu.slot;
+      kutuSlot.value = slotlar;
 
       for (int adim = 0; adim < slotlar; adim++) {
         if (benimNo != oynatmaNo || !mounted) return;
@@ -121,6 +166,7 @@ class _AkorEkraniState extends State<AkorEkrani> {
             kalipAdimiCal(p.kalip, akor, olaylar, p.ses);
           });
         }
+        adimNo.value = adim;
         // Ekranı, kutunun ilk vuruşu çaldıktan sonra güncelle.
         if (adim == 0 && (calanIndex != i || aktifSayfa != sayfa)) {
           setState(() {
@@ -137,6 +183,8 @@ class _AkorEkraniState extends State<AkorEkrani> {
       i++;
     }
     if (benimNo == oynatmaNo && mounted) {
+      adimNo.value = -1;
+      kutuSlot.value = 0;
       setState(() {
         durum = Durum.durdu;
         calanIndex = -1;
@@ -147,11 +195,15 @@ class _AkorEkraniState extends State<AkorEkrani> {
   void duraklat() {
     if (durum != Durum.caliyor) return;
     oynatmaNo++;
+    adimNo.value = -1;
+    kutuSlot.value = 0;
     setState(() => durum = Durum.duraklatildi);
   }
 
   void durdur() {
     oynatmaNo++;
+    adimNo.value = -1;
+    kutuSlot.value = 0;
     setState(() {
       durum = Durum.durdu;
       calanIndex = -1;
@@ -205,10 +257,94 @@ class _AkorEkraniState extends State<AkorEkrani> {
     });
   }
 
+  // ---------- Arayüz parçaları ----------
+
   Widget yatayStrip(List<Widget> cocuklar) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(children: cocuklar),
+    );
+  }
+
+  Widget pilli(IconData ikon, String yazi) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _cam,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kenar),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(ikon, size: 16, color: _neon),
+          const SizedBox(width: 6),
+          Text(yazi, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+
+  Widget baslik() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShaderMask(
+            shaderCallback: (r) => const LinearGradient(
+              colors: [_neon, _mor, _pembe],
+            ).createShader(r),
+            child: const Text(
+              'AKOR STÜDYO',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              pilli(Icons.music_note, globalIsimler[ton]),
+              pilli(Icons.av_timer, olcu.ad),
+              pilli(Icons.speed, '$tempo BPM'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget kart(String baslikYazi, IconData ikon, List<Widget> cocuklar,
+      {bool acik = false}) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      decoration: BoxDecoration(
+        color: _cam,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _kenar),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: ExpansionTile(
+          initiallyExpanded: acik,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          leading: Icon(ikon, color: _neon),
+          title: Text(
+            baslikYazi,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: cocuklar,
+        ),
+      ),
     );
   }
 
@@ -222,23 +358,22 @@ class _AkorEkraniState extends State<AkorEkrani> {
       return Expanded(
         child: GestureDetector(
           onTap: () => setState(() => ton = i),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
             height: 40,
             margin: const EdgeInsets.all(2),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: secildi
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
+              color: secildi ? const Color(0x66B388FF) : const Color(0x14FFFFFF),
               border: Border.all(
-                color: secildi ? Colors.deepPurple : Colors.grey,
+                color: secildi ? _neon : _kenar,
                 width: secildi ? 2 : 1,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               globalIsimler[i],
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -257,7 +392,12 @@ class _AkorEkraniState extends State<AkorEkrani> {
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: ActionChip(
-        label: Text(a.adi),
+        label: Text(
+          a.adi,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        backgroundColor: akorRengi(a.adi, a: 0.35, s: 0.7, v: 0.9),
+        side: BorderSide(color: akorRengi(a.adi, s: 0.6, v: 1.0)),
         onPressed: () => akorYerlestir(a),
       ),
     );
@@ -267,25 +407,47 @@ class _AkorEkraniState extends State<AkorEkrani> {
     final akor = tablo[i];
     final secildi = i == secili;
     final calan = (aktifSayfa * hucreSayisi + i) == calanIndex;
+    final r1 = akorRengi(akor?.adi, s: 0.75, v: calan ? 1.0 : 0.8);
+    final r2 = akorRengi(akor?.adi, s: 0.9, v: calan ? 0.8 : 0.5);
+    final isik = akorRengi(akor?.adi, a: 0.8, s: 0.6, v: 1.0);
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => secili = i),
         onLongPress: () => setState(() => tablo[i] = null),
-        child: Container(
-          height: 38,
-          margin: const EdgeInsets.all(2),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: calan ? Colors.amber.shade200 : null,
-            border: Border.all(
-              color: secildi ? Colors.deepPurple : Colors.grey,
-              width: secildi ? 2.5 : 1,
+        child: AnimatedScale(
+          scale: calan ? 1.07 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            height: 50,
+            margin: const EdgeInsets.all(3),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: akor == null
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [r1, r2],
+                    ),
+              color: akor == null ? const Color(0x14FFFFFF) : null,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: secildi ? Colors.white : _kenar,
+                width: secildi ? 2.5 : 1,
+              ),
+              boxShadow: calan
+                  ? [BoxShadow(color: isik, blurRadius: 18, spreadRadius: 2)]
+                  : null,
             ),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            akor?.adi ?? '',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            child: Text(
+              akor?.adi ?? '+',
+              style: TextStyle(
+                fontSize: akor == null ? 18 : 16,
+                fontWeight: FontWeight.w800,
+                color: akor == null ? Colors.white38 : Colors.white,
+              ),
+            ),
           ),
         ),
       ),
@@ -325,240 +487,185 @@ class _AkorEkraniState extends State<AkorEkrani> {
     );
   }
 
-  Widget parcaSatiri(int p) {
-    final parca = parcalar[p];
-    final olcudeVar = parca.kalip.olcuVar(olcu.ad);
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () => setState(() => parca.sessiz = !parca.sessiz),
-          icon: Icon(parca.sessiz ? Icons.volume_off : Icons.volume_up),
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                parca.kalip.etiket,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              if (!olcudeVar)
-                Text(
-                  '${olcu.ad} ölçüsünde yok, çalmaz',
-                  style: const TextStyle(fontSize: 12, color: Colors.red),
-                ),
-              Slider(
-                value: parca.ses,
-                onChanged: (v) => setState(() => parca.ses = v),
-              ),
-            ],
-          ),
-        ),
-        IconButton(
-          onPressed: () => setState(() => parcalar.removeAt(p)),
-          icon: const Icon(Icons.close),
-        ),
-      ],
-    );
-  }
-
-  Widget soundsBolumu() {
-    final filtre = kaliplar
-        .where((k) =>
-            k.enstruman == secEns &&
-            k.olcuVar(olcu.ad) &&
-            (secTarz == 'Tümü' || k.tarz == secTarz))
-        .toList();
-    final gecerli = filtre.contains(secKalip)
-        ? secKalip
-        : (filtre.isNotEmpty ? filtre.first : null);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Enstrüman:'),
-        DropdownButton<String>(
-          isExpanded: true,
-          value: secEns,
-          items: [
-            for (final e in enstrumanAdlari.entries)
-              DropdownMenuItem(value: e.key, child: Text(e.value)),
-          ],
-          onChanged: (v) => setState(() => secEns = v ?? secEns),
-        ),
-        const SizedBox(height: 8),
-        const Text('Tarz:'),
-        DropdownButton<String>(
-          isExpanded: true,
-          value: secTarz,
-          items: [
-            for (final t in ['Tümü', ...tarzlar])
-              DropdownMenuItem(value: t, child: Text(t)),
-          ],
-          onChanged: (v) => setState(() => secTarz = v ?? secTarz),
-        ),
-        const SizedBox(height: 8),
-        Text('Kalıp (${olcu.ad} ölçüsüne uyanlar):'),
-        DropdownButton<Kalip>(
-          isExpanded: true,
-          value: gecerli,
-          items: [
-            for (final k in filtre)
-              DropdownMenuItem(value: k, child: Text(k.ad)),
-          ],
-          onChanged: (k) => setState(() => secKalip = k),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: FilledButton.icon(
-            onPressed: (gecerli == null || parcalar.length >= enFazlaParca)
-                ? null
-                : () => setState(() => parcalar.add(Parca(gecerli!))),
-            icon: const Icon(Icons.add),
-            label: const Text('Parçalara ekle'),
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Akor Stüdyo')),
-      body: ListView(
+  Widget tabloKarti() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 8),
+      decoration: BoxDecoration(
+        color: _cam,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _kenar),
+      ),
+      child: Column(
         children: [
-          ExpansionTile(
-            title: const Text('Ton ve Akorlar'),
-            initiallyExpanded: true,
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            childrenPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          for (int s = 0; s < 4; s++)
+            Row(children: [
+              for (int k = 0; k < 4; k++) hucre(s * 4 + k),
+            ]),
+          const SizedBox(height: 4),
+          sayfaCubugu(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Ton:'),
-              const SizedBox(height: 4),
-              tonSecici(),
-              const SizedBox(height: 12),
-              Text('${globalIsimler[ton]} tonunun akorları:'),
-              yatayStrip([
-                for (final t in akorTurleri) akorChip(Akor(ton, t.kod)),
-              ]),
-              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: sayfalar.length < enFazlaSayfa ? sayfaEkle : null,
+                icon: const Icon(Icons.add),
+                label: const Text('Tablo ekle'),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: sayfalar.length > 1 ? sayfaSil : null,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Tablo sil'),
+              ),
             ],
           ),
-          ExpansionTile(
-            title: const Text('Akor Tablosu'),
-            initiallyExpanded: true,
-            childrenPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            children: [
-              for (int s = 0; s < 4; s++)
-                Row(children: [
-                  for (int k = 0; k < 4; k++) hucre(s * 4 + k),
-                ]),
-              const SizedBox(height: 4),
-              sayfaCubugu(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton.icon(
-                    onPressed:
-                        sayfalar.length < enFazlaSayfa ? sayfaEkle : null,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Tablo ekle'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: sayfalar.length > 1 ? sayfaSil : null,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Tablo sil'),
-                  ),
-                ],
-              ),
-              const Text(
-                'Dokun: kutuyu seç. Basılı tut: kutuyu sil. Kutunun süresi seçili arpejin uzunluğuna göre değişir.',
-                style: TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton.filled(
-                  onPressed: oynat,
-                  icon: const Icon(Icons.play_arrow),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: duraklat,
-                  icon: const Icon(Icons.pause),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: durdur,
-                  icon: const Icon(Icons.stop),
-                ),
-              ],
-            ),
-          ),
-          ExpansionTile(
-            title: const Text('Loop Page'),
-            childrenPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            children: [
-              Row(
-                children: [
-                  const Text('Ölçü: '),
-                  DropdownButton<String>(
-                    value: olcu.ad,
-                    items: [
-                      for (final o in olculer)
-                        DropdownMenuItem(value: o.ad, child: Text(o.ad)),
-                    ],
-                    onChanged: (v) => setState(() {
-                      olcu = olculer.firstWhere(
-                        (o) => o.ad == v,
-                        orElse: () => olcu,
-                      );
-                    }),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Text('Tempo: $tempo'),
-                  Expanded(
-                    child: Slider(
-                      min: 60,
-                      max: 180,
-                      divisions: 120,
-                      label: '$tempo',
-                      value: tempo.toDouble(),
-                      onChanged: (v) => setState(() => tempo = v.round()),
-                    ),
-                  ),
-                ],
-              ),
-              if (parcalar.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Text('Parça yok. Sounds menüsünden parça ekle.'),
-                ),
-              for (int p = 0; p < parcalar.length; p++) parcaSatiri(p),
-            ],
-          ),
-          ExpansionTile(
-            title: const Text('Sounds'),
-            childrenPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            children: [soundsBolumu()],
+          const Text(
+            'Dokun: kutuyu seç. Basılı tut: kutuyu sil. Kutunun süresi seçili arpejin uzunluğuna göre değişir.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.white60),
           ),
         ],
       ),
     );
   }
-}
+
+  Widget vurusCubugu() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([adimNo, kutuSlot]),
+      builder: (context, _) {
+        final n = kutuSlot.value > 0 ? kutuSlot.value : olcu.slot;
+        final a = adimNo.value;
+        return SizedBox(
+          height: 18,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              for (int k = 0; k < n; k++)
+                Expanded(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    height: k == a ? 14 : 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: k == a
+                          ? _neon
+                          : (k < a ? _mor : const Color(0x33FFFFFF)),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: k == a
+                          ? const [BoxShadow(color: _neon, blurRadius: 10)]
+                          : null,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget buyukOynat() {
+    final caliyor = durum == Durum.caliyor;
+    return GestureDetector(
+      onTap: caliyor ? duraklat : oynat,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 76,
+        height: 76,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: caliyor ? const [_pembe, _mor] : const [_neon, _mor],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: caliyor
+                  ? const Color(0x99FF4081)
+                  : const Color(0x9900E5FF),
+              blurRadius: caliyor ? 26 : 14,
+            ),
+          ],
+        ),
+        child: Icon(
+          caliyor ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          size: 44,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget kucukDugme(IconData ikon, VoidCallback f) {
+    return GestureDetector(
+      onTap: f,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _cam,
+          border: Border.all(color: _kenar),
+        ),
+        child: Icon(ikon, size: 26),
+      ),
+    );
+  }
+
+  Widget oynatPaneli() {
+    final yazi = durum == Durum.caliyor
+        ? 'Çalıyor'
+        : durum == Durum.duraklatildi
+            ? 'Duraklatıldı'
+            : 'Hazır';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x337C4DFF), Color(0x2200E5FF)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _kenar),
+      ),
+      child: Column(
+        children: [
+          vurusCubugu(),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              kucukDugme(Icons.stop_rounded, durdur),
+              const SizedBox(width: 24),
+              buyukOynat(),
+              const SizedBox(width: 24),
+              SizedBox(
+                width: 52,
+                child: Text(
+                  yazi,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget parcaSatiri(int p) {
+    final parca = parcalar[p];
+    final olcudeVar = parca.kalip.olcuVar(olcu.ad);
+    final renk = ensRenk(parca.kalip.enstruman);
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      decoration: BoxDecoration(
+        color: const Color(0x14FFFFFF),
+        borderRadius: BorderRadius.circular(16),
+        border: Bord
