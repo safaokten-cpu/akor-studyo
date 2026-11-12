@@ -668,4 +668,219 @@ class _AkorEkraniState extends State<AkorEkrani> {
       decoration: BoxDecoration(
         color: const Color(0x14FFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Bord
+        border: Border(left: BorderSide(color: renk, width: 4)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => setState(() => parca.sessiz = !parca.sessiz),
+            icon: Icon(
+              parca.sessiz ? Icons.volume_off : ensIkon(parca.kalip.enstruman),
+              color: parca.sessiz ? Colors.white38 : renk,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  parca.kalip.etiket,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                if (!olcudeVar)
+                  Text(
+                    '${olcu.ad} ölçüsünde yok, çalmaz',
+                    style: const TextStyle(
+                        fontSize: 12, color: Colors.redAccent),
+                  ),
+                Slider(
+                  value: parca.ses,
+                  onChanged: (v) => setState(() => parca.ses = v),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => parcalar.removeAt(p)),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget loopBolumu() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Ölçü:',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white70)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final o in olculer)
+              ChoiceChip(
+                label: Text(o.ad),
+                selected: olcu.ad == o.ad,
+                onSelected: (_) => setState(() => olcu = o),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            IconButton(
+              onPressed: () => setState(
+                  () => tempo = (tempo - 5).clamp(60, 180).toInt()),
+              icon: const Icon(Icons.remove_circle_outline),
+            ),
+            Expanded(
+              child: Center(
+                child: Text(
+                  '$tempo BPM',
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: () => setState(
+                  () => tempo = (tempo + 5).clamp(60, 180).toInt()),
+              icon: const Icon(Icons.add_circle_outline),
+            ),
+          ],
+        ),
+        Slider(
+          min: 60,
+          max: 180,
+          divisions: 120,
+          label: '$tempo',
+          value: tempo.toDouble(),
+          onChanged: (v) => setState(() => tempo = v.round()),
+        ),
+        if (parcalar.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Parça yok. Sounds menüsünden parça ekle.'),
+          ),
+        for (int p = 0; p < parcalar.length; p++) parcaSatiri(p),
+      ],
+    );
+  }
+
+  Widget soundsBolumu() {
+    final filtre = kaliplar
+        .where((k) =>
+            k.enstruman == secEns &&
+            k.olcuVar(olcu.ad) &&
+            (secTarz == 'Tümü' || k.tarz == secTarz))
+        .toList();
+    final gecerli = filtre.contains(secKalip)
+        ? secKalip
+        : (filtre.isNotEmpty ? filtre.first : null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Enstrüman:',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white70)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final e in enstrumanAdlari.entries)
+              ChoiceChip(
+                avatar: Icon(ensIkon(e.key), size: 18),
+                label: Text(e.value),
+                selected: secEns == e.key,
+                onSelected: (_) => setState(() => secEns = e.key),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Text('Tarz:',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white70)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final t in ['Tümü', ...tarzlar])
+              ChoiceChip(
+                label: Text(t),
+                selected: secTarz == t,
+                onSelected: (_) => setState(() => secTarz = t),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text('Kalıp (${olcu.ad} ölçüsüne uyanlar):',
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: Colors.white70)),
+        DropdownButton<Kalip>(
+          isExpanded: true,
+          value: gecerli,
+          items: [
+            for (final k in filtre)
+              DropdownMenuItem(value: k, child: Text(k.ad)),
+          ],
+          onChanged: (k) => setState(() => secKalip = k),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: FilledButton.icon(
+            onPressed: (gecerli == null || parcalar.length >= enFazlaParca)
+                ? null
+                : () => setState(() => parcalar.add(Parca(gecerli!))),
+            icon: const Icon(Icons.add),
+            label: const Text('Parçalara ekle'),
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1E1140), Color(0xFF0A1128)],
+          ),
+        ),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 28),
+            children: [
+              baslik(),
+              tabloKarti(),
+              oynatPaneli(),
+              kart('Ton ve Akorlar', Icons.queue_music, [
+                const Text('Ton:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.white70)),
+                const SizedBox(height: 4),
+                tonSecici(),
+                const SizedBox(height: 12),
+                Text('${globalIsimler[ton]} tonunun akorları:',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Colors.white70)),
+                yatayStrip([
+                  for (final t in akorTurleri) akorChip(Akor(ton, t.kod)),
+                ]),
+              ], acik: true),
+              kart('Loop Page', Icons.loop, [loopBolumu()]),
+              kart('Sounds', Icons.library_music, [soundsBolumu()]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
