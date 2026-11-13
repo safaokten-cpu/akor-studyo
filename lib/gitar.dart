@@ -1,4 +1,5 @@
 import 'akor.dart';
+import 'katalog.dart';
 import 'ses_motoru.dart';
 
 // Gitar açık telleri (Mi La Re Sol Si Mi), ses dosyalarının aralığına göre.
@@ -39,19 +40,24 @@ List<List<int>> _gitarDizilimi(Akor a) {
   return sonuc;
 }
 
+// Ses dosyası adı ve seviye, nota çalınmadan ÖNCE o anki türden alınır.
 void _gitarNota(List<int> tm, double vs, int gecikme) {
-  final ad = sesDosyaAdi('gitar', tm[1]);
+  final tur = aktifGitarTuru;
+  final ad = sesDosyaAdi(tur.onek, tm[1]);
+  final seviye = vs * tur.seviye;
   final tel = tm[0];
   if (gecikme <= 0) {
-    sesCal(ad, vs, tel);
+    sesCal(ad, seviye, tel);
   } else {
-    Future.delayed(Duration(milliseconds: gecikme), () => sesCal(ad, vs, tel));
+    Future.delayed(
+        Duration(milliseconds: gecikme), () => sesCal(ad, seviye, tel));
   }
 }
 
 void gitarCal(Akor akor, List<String> olaylar, double seviye) {
   final v = _gitarDizilimi(akor);
   final n = v.length;
+  final aralik = aktifGitarTuru.strumMs;
   for (final t in olaylar) {
     switch (t) {
       case 'p':
@@ -76,21 +82,21 @@ void gitarCal(Akor akor, List<String> olaylar, double seviye) {
         break;
       case 'd':
         for (int j = 0; j < n; j++) {
-          _gitarNota(v[j], seviye * 0.85, j * 4);
+          _gitarNota(v[j], seviye * 0.85, (j * aralik).round());
         }
         break;
       case 'u':
         final alt = n > 4 ? n - 4 : 0;
         int sira = 0;
         for (int j = n - 1; j >= alt; j--) {
-          _gitarNota(v[j], seviye * 0.7, sira * 3);
+          _gitarNota(v[j], seviye * 0.7, (sira * aralik * 0.75).round());
           sira++;
         }
         break;
       case 'b':
         final ust = n < 3 ? n : 3;
         for (int j = 0; j < ust; j++) {
-          _gitarNota(v[j], seviye * 0.9, j * 3);
+          _gitarNota(v[j], seviye * 0.9, (j * aralik * 0.75).round());
         }
         break;
     }
