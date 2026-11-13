@@ -180,6 +180,73 @@ class StudyoDurumu extends ChangeNotifier {
     return sayfalar[s][i % hucreSayisi];
   }
 
+  // ---------- Yazıdan yükleme ----------
+
+  // Yazıdan okunan akorları tabloya sırayla dizer (sayfa dolunca yeni sayfa açar).
+  // Ritim verilmişse ilk gitar parçasının kalıbını onunla değiştirir.
+  // Tabloya yerleşen akor sayısını döndürür.
+  int yaziUygula(List<Akor> akorlar, String? ritim, bool temizle) {
+    durdur();
+    const toplam = enFazlaSayfa * hucreSayisi;
+    int yerlesen = 0;
+    if (akorlar.isNotEmpty) {
+      int baslangic = 0;
+      if (temizle) {
+        sayfalar.clear();
+        sayfalar.add(List<Akor?>.filled(hucreSayisi, null));
+      } else {
+        baslangic = sonDoluIndex() + 1;
+      }
+      for (final a in akorlar) {
+        final idx = baslangic + yerlesen;
+        if (idx >= toplam) break;
+        final s = idx ~/ hucreSayisi;
+        while (sayfalar.length <= s) {
+          sayfalar.add(List<Akor?>.filled(hucreSayisi, null));
+        }
+        sayfalar[s][idx % hucreSayisi] = a;
+        yerlesen++;
+      }
+      aktifSayfa =
+          (baslangic ~/ hucreSayisi).clamp(0, sayfalar.length - 1).toInt();
+      secili = 0;
+      tabloTik.value++;
+    }
+    if (ritim != null && ritim.isNotEmpty) {
+      _ritmiGitaraUygula(ritim);
+    }
+    _bildir();
+    return yerlesen;
+  }
+
+  // İlk gitar parçasının kalıbını yazıdan gelen ritimle değiştirir.
+  // Parçanın sesi, susturma durumu ve gitar türü korunur.
+  void _ritmiGitaraUygula(String desen) {
+    final kalip = Kalip(
+      'Yazıdan ${desen.replaceAll(' ', '')}',
+      'gitar',
+      'Akustik',
+      {for (final o in olculer) o.ad: desen},
+    );
+    final yeni = Parca(kalip);
+    final eskiNo = parcalar.indexWhere((p) => p.kalip.enstruman == 'gitar');
+    String tur = secTur;
+    if (eskiNo >= 0) {
+      final eski = parcalar[eskiNo];
+      tur = parcaTuruKodu(eski);
+      yeni.ses = eski.ses;
+      yeni.sessiz = eski.sessiz;
+      _parcaTurleri[eski] = null;
+      parcalar[eskiNo] = yeni;
+    } else if (parcalar.length < enFazlaParca) {
+      parcalar.add(yeni);
+    } else {
+      return;
+    }
+    _parcaTurleri[yeni] = tur;
+    _turuHazirla('gitar', tur);
+  }
+
   // ---------- Loop Page ----------
 
   void olcuSec(Olcu o) {
