@@ -10,9 +10,12 @@ import 'kalip.dart';
 const enAlcakNota = 48;
 const enYuksekNota = 78;
 
-// Kanallar: 0-5 gitar telleri, 6-11 piyano, 12 kick, 13 snare, 14 hihat.
+// Kanallar: 0-5 gitar telleri (banka 0), 6-11 piyano, 12 kick, 13 snare,
+// 14 hihat, 15-32 ek gitar bankaları (3 banka x 6 tel).
+const _kanalSayisi = 33;
 final Map<String, AudioSource> _kaynaklar = {};
-final List<SoundHandle?> _kanallar = List<SoundHandle?>.filled(15, null);
+final List<SoundHandle?> _kanallar =
+    List<SoundHandle?>.filled(_kanalSayisi, null);
 bool _hazir = false;
 
 // Tür sesleri (clean, naylon...) seçilince yüklenir. Önek -> yükleme işi.
@@ -62,6 +65,13 @@ Future<void> seslerHazirla() async {
     _hazir = true;
   } catch (e) {
     return;
+  }
+  // Aynı anda çalabilen ses sınırını yükselt (varsayılan 16, 4 gitar için az).
+  // dynamic: kütüphane sürümünde bu fonksiyon yoksa derleme bozulmasın.
+  try {
+    (SoLoud.instance as dynamic).setMaxActiveVoiceCount(64);
+  } catch (e) {
+    // Sürüm desteklemiyorsa varsayılan kalır.
   }
   await _dosyalariYukle(_tumDosyalar());
   _tamam.addAll(['gitar', 'piyano']);
