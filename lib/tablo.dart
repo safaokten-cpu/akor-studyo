@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'akor_yazi.dart';
 import 'durum.dart';
 import 'ortak.dart';
 import 'tema.dart';
@@ -164,6 +165,38 @@ class TabloKarti extends StatelessWidget {
     );
   }
 
+  Widget _yaziDugmesi(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => _YaziDialogu(d),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: renkKum,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: renkKenar),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.text_snippet_outlined, size: 15, color: renkToprak),
+            SizedBox(width: 5),
+            Text(
+              'Yazıdan yükle',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: renkToprak,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -198,13 +231,195 @@ class TabloKarti extends StatelessWidget {
             builder: (context, _) => _kontrolSatiri(),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Dokun: seç. Basılı tut: sil.',
-            style: TextStyle(fontSize: 11, color: renkToprakAcik),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Dokun: seç. Basılı tut: sil.',
+                  style: TextStyle(fontSize: 11, color: renkToprakAcik),
+                ),
+              ),
+              _yaziDugmesi(context),
+            ],
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
         ],
       ),
+    );
+  }
+}
+
+// Yazıdan yükleme penceresi: önce yapıştır ve oku, sonra düzelt ve aktar.
+class _YaziDialogu extends StatefulWidget {
+  final StudyoDurumu d;
+  const _YaziDialogu(this.d);
+
+  @override
+  State<_YaziDialogu> createState() => _YaziDialoguDurumu();
+}
+
+class _YaziDialoguDurumu extends State<_YaziDialogu> {
+  final TextEditingController _yapistir = TextEditingController();
+  final TextEditingController _akorlar = TextEditingController();
+  final TextEditingController _ritim = TextEditingController();
+  bool _okundu = false;
+  bool _temizle = true;
+  String? _hata;
+  int _okunanAkor = 0;
+
+  @override
+  void dispose() {
+    _yapistir.dispose();
+    _akorlar.dispose();
+    _ritim.dispose();
+    super.dispose();
+  }
+
+  void _oku() {
+    final s = yaziyiOku(_yapistir.text);
+    if (s.akorlar.isEmpty) {
+      setState(() => _hata =
+          'Akor satırı bulunamadı. Akorların yazılı olduğu satırları da kopyaladığından emin ol.');
+      return;
+    }
+    setState(() {
+      _akorlar.text = s.akorlar.join(' ');
+      _ritim.text = s.ritim ?? '';
+      _okunanAkor = s.akorlar.length;
+      _okundu = true;
+      _hata = null;
+    });
+  }
+
+  void _aktar() {
+    final liste = akorlariCoz(_akorlar.text);
+    if (liste.hatali.isNotEmpty) {
+      setState(() => _hata =
+          'Okunamadı: ${liste.hatali.join(', ')}. Düzeltip tekrar dene.');
+      return;
+    }
+    if (liste.akorlar.isEmpty) {
+      setState(() => _hata = 'Aktarılacak akor yok.');
+      return;
+    }
+    final ritim = ritimTemizle(_ritim.text);
+    final mesaj = ScaffoldMessenger.maybeOf(context);
+    final yerlesen = widget.d.yaziUygula(liste.akorlar, ritim, _temizle);
+    Navigator.pop(context);
+    final atlanan = liste.akorlar.length - yerlesen;
+    mesaj?.showSnackBar(
+      SnackBar(
+        content: Text(
+          atlanan > 0
+              ? '$yerlesen akor aktarıldı, $atlanan akor sığmadı'
+              : '$yerlesen akor tabloya aktarıldı',
+        ),
+      ),
+    );
+  }
+
+  Widget _hataYazisi() {
+    if (_hata == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        _hata!,
+        style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+      ),
+    );
+  }
+
+  Widget _birinciAdim() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Akor sitesinden kopyaladığın metni yapıştır. Akor satırları ve '
+          '"Ritim:" satırı otomatik bulunur.',
+          style: TextStyle(fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _yapistir,
+          minLines: 5,
+          maxLines: 8,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'Metni buraya yapıştır',
+          ),
+        ),
+        _hataYazisi(),
+      ],
+    );
+  }
+
+  Widget _ikinciAdim() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$_okunanAkor akor okundu. Yanlış olanı düzeltebilirsin.',
+          style: const TextStyle(fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _akorlar,
+          minLines: 3,
+          maxLines: 6,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Akorlar (sırayla)',
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _ritim,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Ritim (p i m a ...)',
+            helperText: 'Boşsa mevcut gitar kalıbı kalır. Nokta = boşluk.',
+            helperMaxLines: 2,
+          ),
+        ),
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Tabloyu temizle', style: TextStyle(fontSize: 13)),
+          value: _temizle,
+          onChanged: (v) => setState(() => _temizle = v),
+        ),
+        _hataYazisi(),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Yazıdan yükle'),
+      content: SingleChildScrollView(
+        child: _okundu ? _ikinciAdim() : _birinciAdim(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Vazgeç'),
+        ),
+        if (_okundu)
+          TextButton(
+            onPressed: () => setState(() {
+              _okundu = false;
+              _hata = null;
+            }),
+            child: const Text('Geri'),
+          ),
+        TextButton(
+          onPressed: _okundu ? _aktar : _oku,
+          child: Text(_okundu ? 'Aktar' : 'Oku'),
+        ),
+      ],
     );
   }
 }
