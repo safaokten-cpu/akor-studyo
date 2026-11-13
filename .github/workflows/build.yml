@@ -32,6 +32,17 @@ jobs:
           ls assets/sesler | wc -l
           echo "Gitar, piyano, davul ornekleri:"
           ls -la assets/sesler | grep -E "gitar_mi_4|piyano_do_4|piyano_fa_diyez_6|davul_" || true
+          echo "=== TUR KONTROLU ==="
+          echo "clean dosya sayisi: $(ls assets/sesler | grep -c '^gitar_clean_')"
+          echo "naylon dosya sayisi: $(ls assets/sesler | grep -c '^gitar_naylon_')"
+          echo "distortion dosya sayisi: $(ls assets/sesler | grep -c '^gitar_distortion_')"
+          echo "akustik dosya sayisi: $(ls assets/sesler | grep -cE '^gitar_(do|re|mi|fa|sol|la|si)')"
+          echo "--- mi_4 boyutlari (clean 264644, distortion 264644, naylon 176444 olmali) ---"
+          ls -la assets/sesler | grep -E "gitar_(clean|naylon|distortion)_mi_4" || true
+          echo "--- biçim ---"
+          file assets/sesler/gitar_clean_mi_4.wav assets/sesler/gitar_naylon_mi_4.wav assets/sesler/gitar_distortion_mi_4.wav || true
+          echo "--- beklenmeyen adlar ---"
+          ls assets/sesler | grep -vE '^(gitar|gitar_clean|gitar_naylon|gitar_distortion|piyano)_(do|do_diyez|re|re_diyez|mi|fa|fa_diyez|sol|sol_diyez|la|la_diyez|si)_[0-9]+\.wav$' | grep -v '^davul_' || true
       - run: flutter create --platforms=android --project-name akor_studyo .
       - run: flutter pub get
       - run: flutter build apk --release
