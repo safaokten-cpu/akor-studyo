@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'akor.dart';
 import 'durum.dart';
 import 'kalip.dart';
+import 'katalog.dart';
 import 'ortak.dart';
 import 'tema.dart';
 
-// Sounds: enstrüman, tarz ve kalıp seçip parçalara ekleme.
+// Sounds: enstrüman, tür, tarz ve kalıp seçip parçalara ekleme.
 class SoundsKarti extends StatelessWidget {
   final StudyoDurumu d;
   const SoundsKarti(this.d, {super.key});
@@ -39,6 +40,24 @@ class SoundsKarti extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
+        // Tür: sadece birden fazla türü olan enstrümanda görünür (şimdilik gitar).
+        if (turSecimiVar(d.secEns)) ...[
+          altBaslik('Tür:'),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 2,
+            children: [
+              for (final t in gitarTurleri)
+                secChip(
+                  d.yukleniyorMu(t) ? '${t.ad} (yükleniyor…)' : t.ad,
+                  d.secTur == t.kod,
+                  () => d.turSec(t.kod),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
         altBaslik('Tarz:'),
         const SizedBox(height: 4),
         Wrap(

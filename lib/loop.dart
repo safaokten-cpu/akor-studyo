@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'akor.dart';
 import 'durum.dart';
 import 'kalip.dart';
+import 'katalog.dart';
 import 'ortak.dart';
 import 'tema.dart';
 
@@ -9,6 +10,42 @@ import 'tema.dart';
 class LoopKarti extends StatelessWidget {
   final StudyoDurumu d;
   const LoopKarti(this.d, {super.key});
+
+  // Gitar parçasının türünü gösteren küçük menü (Akustik, Clean...).
+  Widget _turSecici(Parca parca, Color renk) {
+    if (parca.kalip.enstruman != 'gitar') return const SizedBox.shrink();
+    final tur = d.gitarTuruAl(parca);
+    return PopupMenuButton<String>(
+      tooltip: 'Gitar türü',
+      padding: EdgeInsets.zero,
+      onSelected: (kod) => d.parcaTurSec(parca, kod),
+      itemBuilder: (_) => [
+        for (final t in gitarTurleri)
+          PopupMenuItem<String>(
+            value: t.kod,
+            child: Text(t.ad),
+          ),
+      ],
+      child: Container(
+        margin: const EdgeInsets.only(left: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          border: Border.all(color: renk, width: 1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              d.yukleniyorMu(tur) ? '${tur.ad}…' : tur.ad,
+              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+            ),
+            const Icon(Icons.arrow_drop_down, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _parcaSatiri(BuildContext context, int p) {
     final parca = d.parcalar[p];
@@ -38,12 +75,19 @@ class LoopKarti extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  parca.kalip.etiket,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 12.5),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        parca.kalip.etiket,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 12.5),
+                      ),
+                    ),
+                    _turSecici(parca, renk),
+                  ],
                 ),
                 if (!olcudeVar)
                   Text(

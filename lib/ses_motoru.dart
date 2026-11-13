@@ -4,6 +4,7 @@ import 'kalip.dart';
 
 // Ses motoru: dosyaları yükler ve kanal kanal çalar.
 // Hangi enstrümanın ne çaldığını gitar.dart, piyano.dart, davul.dart bilir.
+// Hangi türlerin olduğunu katalog.dart bilir.
 
 // Ses dosyalarının nota aralığı (MIDI numarası).
 const enAlcakNota = 48;
@@ -14,9 +15,24 @@ final Map<String, AudioSource> _kaynaklar = {};
 final List<SoundHandle?> _kanallar = List<SoundHandle?>.filled(15, null);
 bool _hazir = false;
 
+// Tür sesleri (clean, naylon...) seçilince yüklenir. Önek -> yükleme işi.
+final Map<String, Future<void>> _yuklemeler = {};
+final Set<String> _tamam = {};
+
 // Dosya adı: {enstruman}_{nota}_{oktav}, ör. gitar_mi_4.
+// Tür öneki de olur: gitar_clean_mi_4.
 String sesDosyaAdi(String ens, int m) => '${ens}_${notalar[m % 12]}_${m ~/ 12}';
 
+// Bir önekin tüm notalarının dosya adları.
+List<String> _onekDosyalari(String onek) {
+  final liste = <String>[];
+  for (int m = enAlcakNota; m <= enYuksekNota; m++) {
+    liste.add(sesDosyaAdi(onek, m));
+  }
+  return liste;
+}
+
+// Açılışta yüklenenler: akustik gitar, piyano, davul.
 List<String> _tumDosyalar() {
   final liste = <String>[];
   for (int m = enAlcakNota; m <= enYuksekNota; m++) {
@@ -29,6 +45,17 @@ List<String> _tumDosyalar() {
   return liste;
 }
 
+Future<void> _dosyalariYukle(List<String> adlar) async {
+  for (final ad in adlar) {
+    if (_kaynaklar.containsKey(ad)) continue;
+    try {
+      _kaynaklar[ad] = await SoLoud.instance.loadAsset('assets/sesler/$ad.wav');
+    } catch (e) {
+      // Dosya yoksa atla, o ses sessiz kalır.
+    }
+  }
+}
+
 Future<void> seslerHazirla() async {
   try {
     await SoLoud.instance.init();
@@ -36,13 +63,22 @@ Future<void> seslerHazirla() async {
   } catch (e) {
     return;
   }
-  for (final ad in _tumDosyalar()) {
-    try {
-      _kaynaklar[ad] = await SoLoud.instance.loadAsset('assets/sesler/$ad.wav');
-    } catch (e) {
-      // Dosya yoksa atla, o ses sessiz kalır.
-    }
-  }
+  await _dosyalariYukle(_tumDosyalar());
+  _tamam.addAll(['gitar', 'piyano']);
+}
+
+// Bu önekin sesleri yüklendi mi?
+bool sesOnekiHazirMi(String onek) => _tamam.contains(onek);
+
+// Bir türün seslerini yükler (ör. 'gitar_clean'). Zaten yüklüyse hemen döner,
+// aynı anda iki kez istenirse tek yükleme yapılır.
+Future<void> sesOnekiYukle(String onek) {
+  if (!_hazir) return Future.value();
+  if (_tamam.contains(onek)) return Future.value();
+  return _yuklemeler.putIfAbsent(onek, () async {
+    await _dosyalariYukle(_onekDosyalari(onek));
+    _tamam.add(onek);
+  });
 }
 
 Future<void> _durdurGuvenli(SoundHandle h) async {
