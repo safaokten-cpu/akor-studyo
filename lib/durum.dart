@@ -221,6 +221,8 @@ class StudyoDurumu extends ChangeNotifier {
 
   // İlk gitar parçasının kalıbını yazıdan gelen ritimle değiştirir.
   // Parçanın sesi, susturma durumu ve gitar türü korunur.
+  // Ritmin adım sayısına uyan ölçü varsa ölçü de ona çevrilir
+  // (7 adım -> 7/8 gibi), böylece davul gibi diğer parçalar tam oturur.
   void _ritmiGitaraUygula(String desen) {
     final kalip = Kalip(
       'Yazıdan ${desen.replaceAll(' ', '')}',
@@ -245,6 +247,22 @@ class StudyoDurumu extends ChangeNotifier {
     }
     _parcaTurleri[yeni] = tur;
     _turuHazirla('gitar', tur);
+    _olcuyuRitmeUydur(desen.split(' ').length);
+  }
+
+  // Mevcut ölçü ritme uyuyorsa dokunmaz. Uymuyorsa tam eşleşen ölçüyü
+  // (adım sayısı = ölçü), yoksa yarım ölçü adayını seçer.
+  void _olcuyuRitmeUydur(int adim) {
+    final adaylar = olcuAdaylari(adim);
+    if (adaylar.isEmpty || adaylar.contains(olcu.ad)) return;
+    String secilen = adaylar.first;
+    for (final o in olculer) {
+      if (o.slot == adim && adaylar.contains(o.ad)) {
+        secilen = o.ad;
+        break;
+      }
+    }
+    olcu = olculer.firstWhere((o) => o.ad == secilen);
   }
 
   // ---------- Loop Page ----------
