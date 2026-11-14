@@ -6,7 +6,16 @@ const enstrumanAdlari = {
 
 const davulSesleri = ['kick', 'snare', 'hihat'];
 
-const tarzlar = ['Rock', 'Pop', 'Akustik', 'Country'];
+const tarzlar = [
+  'Rock',
+  'Pop',
+  'Akustik',
+  'Country',
+  'Vals',
+  'Marş',
+  'Bolero',
+  'Türk',
+];
 
 // Bir ölçü = 8'lik nota sayısı. gruplar = vuruş grupları.
 class Olcu {
@@ -21,12 +30,24 @@ const olculer = [
   Olcu('3/4', [2, 2, 2]),
   Olcu('4/4', [2, 2, 2, 2]),
   Olcu('5/4', [2, 2, 2, 2, 2]),
+  Olcu('5/8', [2, 3]),
   Olcu('6/8', [3, 3]),
   Olcu('7/8', [2, 2, 3]),
+  Olcu('9/8', [2, 2, 2, 3]),
+  Olcu('10/8', [3, 2, 2, 3]),
   Olcu('12/8', [3, 3, 3, 3]),
 ];
 
-// Desen yazımı: her kelime bir 8'lik nota. '.' = sessizlik, '+' = aynı anda.
+// Desendeki kelime sayısına göre uygun ölçü adayları.
+// Tam ölçü (adım = ölçü slotu) ya da yarım ölçü (adım x 2 = ölçü slotu).
+// Örnek: 'p i m a m' = 5 adım -> 5/8 (ve 10/8'in yarısı).
+List<String> olcuAdaylari(int adim) => [
+      for (final o in olculer)
+        if (o.slot == adim || o.slot == adim * 2) o.ad,
+    ];
+
+// Desen yazımı: her kelime bir 8'lik nota. '.' = SUS (süresi sayılır, ses çıkmaz),
+// '+' = aynı anda.
 // Gitar/piyano: p=bas, P=ikinci bas, i/m/a=parmaklar, c=tüm akor,
 // h=sağ el akoru (piyano), d=aşağı strum, u=yukarı strum, b=bas teller (rock).
 // Davul: k=kick, s=snare, h=hihat.
@@ -67,8 +88,9 @@ class Parca {
 
 // ---- Arpej aileleri ----
 // Desendeki kelime sayısı = akor kutusunun süresi (8'lik adım sayısı).
-// Ölçü başına tam ölçü: 2/4=4, 3/4=6, 4/4=8, 5/4=10, 6/8=6, 7/8=7, 12/8=12.
-// 4/4'teki 'p i m a' bilerek 4 adım: akor yarım ölçüde değişir.
+// Ölçü başına tam ölçü: 2/4=4, 3/4=6, 4/4=8, 5/4=10, 5/8=5, 6/8=6,
+// 7/8=7, 9/8=9, 10/8=10, 12/8=12.
+// 4/4'teki 4 adımlık desenler bilerek yarım ölçü: akor yarım ölçüde değişir.
 
 // Klasik: p-i-m-a
 const _arpA = {
@@ -134,6 +156,31 @@ const _arpSade = {
   '7/8': 'p . i . m . .',
   '12/8': 'p . . i . . m . . i . .',
 };
+// Vals: 3. yuva sus
+const _arpVals = {
+  '3/4': 'p i m . m i',
+  '6/8': 'p i m . m i',
+  '12/8': 'p i m . m i p i m . m i',
+};
+// Türk aksak ve halk müziği ölçüleri (gruplamaya göre)
+// 5/8 = 2+3, 7/8 = 2+2+3, 9/8 = 2+2+2+3, 10/8 = 3+2+2+3
+const _arpTurkA = {
+  '2/4': 'p i m a',
+  '4/4': 'p . i m . a m i',
+  '5/8': 'p i m a m',
+  '6/8': 'p i m a i m',
+  '7/8': 'p i m i m a m',
+  '9/8': 'p i m a m i p i m',
+  '10/8': 'p i m a m i m p i m',
+};
+const _arpTurkB = {
+  '4/4': 'p i m i . m a m',
+  '5/8': 'p i m i m',
+  '6/8': 'p m i a m i',
+  '7/8': 'p i m a m i m',
+  '9/8': 'p i m i p i m a m',
+  '10/8': 'p m i a m i m p m i',
+};
 // Rock: başparmak sürekli bas çalar.
 const _arpRock = {
   '2/4': 'p i p m',
@@ -155,6 +202,56 @@ const _arpPop = {
   '12/8': 'p+a i m i m i p+a i m i m i',
 };
 
+// ---- 4/4 arpej kütüphanesi (8 adım = tam ölçü) ----
+const _arp44 = [
+  // tam dolu
+  'p i m a p i m a',
+  'p i m a m i m a',
+  'p i m i p i m i',
+  'p a m i p a m i',
+  'a m i p a m i p',
+  'p i m a m i P i',
+  'p m i m p m i m',
+  'p i m p a m i m',
+  // 7 çalınan + 1 sus
+  'p i m a . m a m',
+  'p i m . a m i m',
+  'p . m a i m a m',
+  'p i m a m . m a',
+  'p i . m a i m a',
+  'p i m a m i . a',
+  'p i m a m i m .',
+  // 3+3+2 (tresillo)
+  'p i m p i m a m',
+  'p . i p . i m a',
+  'p . . i . . m a',
+];
+
+// 4/4'te yarım ölçü (4 adım)
+const _arp44Yarim = [
+  'p i m i',
+  'p m i m',
+  'p a m i',
+  'p i P i',
+  'p . i m',
+];
+
+// 12/8 (triole hissi, 12 adım)
+const _arp128 = [
+  'p m i p m i p m i p m i',
+  'p i m a i m p i m a i m',
+  'p i m . i m p i m . i m',
+  'p . m p . m p . m p . m',
+];
+
+// Bolero (4/4, yavaş, sus ağırlıklı)
+const _arpBolero44 = [
+  'p . i m p . i m',
+  'p i m . p i m .',
+  'p . m i p . m i',
+  'p i . m p i . m',
+];
+
 final Map<String, Map<String, String>> _arpAileleri = {
   'a': _arpA,
   'b': _arpB,
@@ -165,15 +262,29 @@ final Map<String, Map<String, String>> _arpAileleri = {
   'g': _arpG,
   'h': _arpH,
   'sade': _arpSade,
+  'vals': _arpVals,
+  'turka': _arpTurkA,
+  'turkb': _arpTurkB,
 };
 
 const _klasik = ['a', 'b', 'c', 'd'];
 
 // Her arpej, her ölçü için ayrı kalıp olur ve adı gerçek deseni gösterir.
-List<Kalip> _arpejler(String ens, String tarz, List<String> aileler) => [
+// sadece verilirse yalnızca o ölçüler alınır.
+List<Kalip> _arpejler(String ens, String tarz, List<String> aileler,
+        [List<String>? sadece]) =>
+    [
       for (final a in aileler)
         for (final e in _arpAileleri[a]!.entries)
-          Kalip('Arpej ${e.value}', ens, tarz, {e.key: e.value}),
+          if (sadece == null || sadece.contains(e.key))
+            Kalip('Arpej ${e.value}', ens, tarz, {e.key: e.value}),
+    ];
+
+// Tek ölçü için hazır desen listesinden kalıp üretir.
+List<Kalip> _arpListe(
+        String ens, String tarz, String olcu, List<String> desenler) =>
+    [
+      for (final d in desenler) Kalip('Arpej $d', ens, tarz, {olcu: d}),
     ];
 
 String _davulUret(String tip, List<int> g) {
@@ -212,6 +323,37 @@ String _davulUret(String tip, List<int> g) {
         t[bas[gi]].add('s');
       } else {
         t[bas[gi]].add('h');
+      }
+    }
+  } else if (tip == 'vals') {
+    // bas - pa - pa
+    for (int gi = 0; gi < n; gi++) {
+      t[bas[gi]].add(gi == 0 ? 'k' : 's');
+    }
+  } else if (tip == 'mars') {
+    // düm - tek, aralarda hafif snare
+    var gi = 0;
+    for (int i = 0; i < slot; i++) {
+      if (bas.contains(i)) {
+        t[i].add(gi.isEven ? 'k' : 's');
+        gi++;
+      } else {
+        t[i].add('s');
+      }
+    }
+  } else if (tip == 'bolero') {
+    for (int i = 0; i < slot; i++) {
+      t[i].add('h');
+    }
+    t[0].add('k');
+    t[3].add('k');
+    t[bas[n - 1]].add('s');
+  } else if (tip == 'turk') {
+    // düm - tek, her grubun sonunda hafif hihat
+    for (int gi = 0; gi < n; gi++) {
+      t[bas[gi]].add(gi.isEven ? 'k' : 's');
+      if (g[gi] > 1) {
+        t[bas[gi] + g[gi] - 1].add('h');
       }
     }
   } else {
@@ -256,6 +398,9 @@ final List<Kalip> kaliplar = [
   Kalip('Arpej yayılan', 'gitar', 'Pop', _arpPop),
   ..._arpejler('gitar', 'Pop', [..._klasik, 'e', 'h']),
   ..._arpejler('gitar', 'Akustik', [..._klasik, 'e', 'f', 'g', 'h', 'sade']),
+  ..._arpListe('gitar', 'Akustik', '4/4', _arp44),
+  ..._arpListe('gitar', 'Akustik', '4/4', _arp44Yarim),
+  ..._arpListe('gitar', 'Akustik', '12/8', _arp128),
   Kalip('Bas-akor', 'gitar', 'Country', {
     '2/4': 'p . c .',
     '3/4': 'p . c . c .',
@@ -275,6 +420,52 @@ final List<Kalip> kaliplar = [
     '12/8': 'p i m P i m p i m P i m',
   }),
   ..._arpejler('gitar', 'Country', [..._klasik, 'f']),
+  // Vals
+  Kalip('Vals bas-akor', 'gitar', 'Vals', {
+    '3/4': 'p . d . d .',
+    '6/8': 'p . . d . d',
+    '12/8': 'p . . d . d p . . d . d',
+  }),
+  ..._arpejler(
+      'gitar', 'Vals', ['b', 'e', 'g', 'h', 'vals'], ['3/4', '6/8', '12/8']),
+  // Marş
+  Kalip('Marş', 'gitar', 'Marş', {
+    '2/4': 'p . c .',
+    '4/4': 'p . c . P . c .',
+    '6/8': 'p . . c . c',
+  }),
+  Kalip('Marş yürüyüş', 'gitar', 'Marş', {
+    '2/4': 'p c p c',
+    '4/4': 'p c p c p c p c',
+    '6/8': 'p c . P c .',
+  }),
+  Kalip('Mehter', 'gitar', 'Marş', {
+    '2/4': 'c . c c',
+    '4/4': 'c . c c c . c c',
+  }),
+  // Bolero
+  Kalip('Bolero strum', 'gitar', 'Bolero', {
+    '4/4': 'p . . d . d u .',
+  }),
+  ..._arpListe('gitar', 'Bolero', '4/4', _arpBolero44),
+  Kalip('Arpej p . i m', 'gitar', 'Bolero', {'2/4': 'p . i m'}),
+  Kalip('Arpej p . i m . m a . m i . m', 'gitar', 'Bolero',
+      {'12/8': 'p . i m . m a . m i . m'}),
+  // Türk
+  Kalip('Halay', 'gitar', 'Türk', {
+    '2/4': 'd . d u',
+    '4/4': 'd . d u d . d u',
+  }),
+  Kalip('Horon', 'gitar', 'Türk', {
+    '2/4': 'd u d u',
+    '7/8': 'd u d u d . u',
+  }),
+  Kalip('Yürük semai', 'gitar', 'Türk', {'6/8': 'd . . d . u'}),
+  Kalip('Aksak 5/8', 'gitar', 'Türk', {'5/8': 'd . d . u'}),
+  Kalip('Zeybek', 'gitar', 'Türk', {'9/8': 'd . d . d . d . u'}),
+  Kalip('Karşılama', 'gitar', 'Türk', {'9/8': 'd . d u d . d u u'}),
+  Kalip('Aksak semai', 'gitar', 'Türk', {'10/8': 'd . . d . d . d . u'}),
+  ..._arpejler('gitar', 'Türk', ['turka', 'turkb']),
   // ---- Piyano ----
   Kalip('Sinkop', 'piyano', 'Rock', {
     '2/4': 'c . . c',
@@ -299,6 +490,9 @@ final List<Kalip> kaliplar = [
   Kalip('Arpej yayılan', 'piyano', 'Pop', _arpPop),
   ..._arpejler('piyano', 'Pop', [..._klasik, 'e', 'h']),
   ..._arpejler('piyano', 'Akustik', [..._klasik, 'e', 'f', 'g', 'h', 'sade']),
+  ..._arpListe('piyano', 'Akustik', '4/4', _arp44),
+  ..._arpListe('piyano', 'Akustik', '4/4', _arp44Yarim),
+  ..._arpListe('piyano', 'Akustik', '12/8', _arp128),
   Kalip('Ritim', 'piyano', 'Country', {
     '2/4': 'p . h .',
     '3/4': 'p . h . h .',
@@ -309,9 +503,53 @@ final List<Kalip> kaliplar = [
     '12/8': 'p . h P . h p . h P . h',
   }),
   ..._arpejler('piyano', 'Country', [..._klasik, 'f']),
+  // Vals
+  Kalip('Vals bas-akor', 'piyano', 'Vals', {
+    '3/4': 'p . h . h .',
+    '6/8': 'p . . h . h',
+    '12/8': 'p . . h . h p . . h . h',
+  }),
+  ..._arpejler(
+      'piyano', 'Vals', ['b', 'e', 'g', 'h', 'vals'], ['3/4', '6/8', '12/8']),
+  // Marş
+  Kalip('Marş', 'piyano', 'Marş', {
+    '2/4': 'p . h .',
+    '4/4': 'p . h . P . h h',
+    '6/8': 'p . . h . h',
+  }),
+  Kalip('Mehter', 'piyano', 'Marş', {
+    '2/4': 'c . c c',
+    '4/4': 'c . c c c . c c',
+  }),
+  // Bolero
+  Kalip('Bolero akor', 'piyano', 'Bolero', {
+    '4/4': 'p . h . p . h h',
+  }),
+  ..._arpListe('piyano', 'Bolero', '4/4', _arpBolero44),
+  Kalip('Arpej p . i m', 'piyano', 'Bolero', {'2/4': 'p . i m'}),
+  Kalip('Arpej p . i m . m a . m i . m', 'piyano', 'Bolero',
+      {'12/8': 'p . i m . m a . m i . m'}),
+  // Türk
+  Kalip('Halay', 'piyano', 'Türk', {
+    '2/4': 'c . h h',
+    '4/4': 'c . h . c . h h',
+  }),
+  Kalip('Horon', 'piyano', 'Türk', {
+    '2/4': 'c . h .',
+    '7/8': 'c . h . c . h',
+  }),
+  Kalip('Yürük semai', 'piyano', 'Türk', {'6/8': 'c . . h . h'}),
+  Kalip('Aksak 5/8', 'piyano', 'Türk', {'5/8': 'c . h . h'}),
+  Kalip('Zeybek', 'piyano', 'Türk', {'9/8': 'c . h . c . h . h'}),
+  Kalip('Aksak semai', 'piyano', 'Türk', {'10/8': 'c . . h . c . h . h'}),
+  ..._arpejler('piyano', 'Türk', ['turka', 'turkb']),
   // ---- Davul ----
   Kalip('Rock', 'davul', 'Rock', _davulDesenleri('rock')),
   Kalip('Pop', 'davul', 'Pop', _davulDesenleri('pop')),
   Kalip('Hafif', 'davul', 'Akustik', _davulDesenleri('hafif')),
   Kalip('Tren ritmi', 'davul', 'Country', _davulDesenleri('tren')),
+  Kalip('Vals', 'davul', 'Vals', _davulDesenleri('vals')),
+  Kalip('Marş', 'davul', 'Marş', _davulDesenleri('mars')),
+  Kalip('Bolero', 'davul', 'Bolero', _davulDesenleri('bolero')),
+  Kalip('Düyek', 'davul', 'Türk', _davulDesenleri('turk')),
 ];
