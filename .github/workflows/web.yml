@@ -2,6 +2,7 @@ name: Web Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
   pages: write
@@ -23,6 +24,8 @@ jobs:
             fi
           done
       - run: flutter create --platforms=web --project-name akor_studyo .
+      - name: Soloud scriptini ekle
+        run: sed -i 's|<script src="flutter_bootstrap.js" async></script>|<script src="assets/packages/flutter_soloud/web/init_soloud.js" defer></script>\n  <script src="flutter_bootstrap.js" async></script>|' web/index.html
       - run: flutter pub get
       - run: flutter build web --base-href /akor-studyo/
       - uses: actions/upload-pages-artifact@v3
