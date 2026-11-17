@@ -176,6 +176,22 @@ class StudyoDurumu extends ChangeNotifier {
     _bildir();
   }
 
+  // Transpoze: tablodaki tüm akorları (bütün sayfalar) yarım ses kaydırır,
+  // tonu da aynı miktarda değiştirir. Akor türleri ve seçili arpejler aynen kalır.
+  void transpoze(int yarimSes) {
+    final k = ((yarimSes % 12) + 12) % 12;
+    if (k == 0) return;
+    for (final sayfa in sayfalar) {
+      for (int i = 0; i < sayfa.length; i++) {
+        final a = sayfa[i];
+        if (a != null) sayfa[i] = Akor((a.kok + k) % 12, a.tur);
+      }
+    }
+    ton = (ton + k) % 12;
+    tabloTik.value++;
+    _bildir();
+  }
+
   void akorYerlestir(Akor a) {
     tablo[secili] = a;
     if (secili < hucreSayisi - 1) secili++;

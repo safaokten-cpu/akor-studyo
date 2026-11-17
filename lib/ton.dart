@@ -52,6 +52,25 @@ class TonKarti extends StatelessWidget {
     );
   }
 
+  // Transpoze: tablodaki tüm akorları yarım ses aşağı / yukarı kaydırır.
+  Widget _transpozeSatiri() {
+    return Row(
+      children: [
+        Expanded(child: altBaslik('Transpoze (tüm akorlar):')),
+        kucukIkon(Icons.remove_circle_outline, () => d.transpoze(-1)),
+        SizedBox(
+          width: 40,
+          child: Text(
+            globalIsimler[d.ton],
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          ),
+        ),
+        kucukIkon(Icons.add_circle_outline, () => d.transpoze(1)),
+      ],
+    );
+  }
+
   Widget _akorChip(Akor a) {
     final renk = akorRengi(a);
     return Padding(
@@ -83,7 +102,9 @@ class TonKarti extends StatelessWidget {
             altBaslik('Ton:'),
             const SizedBox(height: 4),
             _tonSecici(),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
+            _transpozeSatiri(),
+            const SizedBox(height: 6),
             altBaslik('${globalIsimler[d.ton]} tonunun akorları:'),
             const SizedBox(height: 2),
             yatayStrip([
