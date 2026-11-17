@@ -11,11 +11,63 @@ const enFazlaParca = 6;
 
 enum Durum { durdu, caliyor, duraklatildi }
 
+// Akor kutusuna seçilebilen arpej desenleri: kalıp listesindeki tüm gitar
+// arpejleri, tekrarsız ve adım sayısına göre sıralı.
+List<String> _arpejHavuzuUret() {
+  final kume = <String>{};
+  for (final k in kaliplar) {
+    if (k.enstruman != 'gitar' || !k.ad.startsWith('Arpej')) continue;
+    kume.addAll(k.desenler.values);
+  }
+  final liste = kume.toList();
+  liste.sort((a, b) {
+    final c = a.split(' ').length.compareTo(b.split(' ').length);
+    return c != 0 ? c : a.compareTo(b);
+  });
+  return liste;
+}
+
+final List<String> arpejHavuzu = _arpejHavuzuUret();
+
+final List<int> arpejAdimSayilari = (arpejHavuzu
+        .map((x) => x.split(' ').length)
+        .toSet()
+        .toList()
+      ..sort());
+
+// Akora özel desenden, parçanın enstrümanına uygun geçici kalıp üretir.
+Kalip _ozelKalip(Kalip temel, String desen) => Kalip(
+      'Özel $desen',
+      temel.enstruman,
+      temel.tarz,
+      {for (final o in olculer) o.ad: desen},
+    );
+
+// Elle yazılan deseni kontrol eder. 'pima' gibi bitişik yazılırsa harfleri
+// ayırır. Geçersizse null döner.
+String? desenTemizle(String ham) {
+  var t = ham.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (t.isEmpty) return null;
+  if (!t.contains(' ') && !t.contains('+')) {
+    t = t.split('').join(' ');
+  }
+  final kelimeler = t.split(' ');
+  if (kelimeler.length > 16) return null;
+  final gecerli = RegExp(r'^(\.|[pPimacdubh](\+[pPimacdubh])*)$');
+  for (final k in kelimeler) {
+    if (!gecerli.hasMatch(k)) return null;
+  }
+  return kelimeler.join(' ');
+}
+
 // Uygulamanın tüm durumu ve çalma mantığı burada.
 // Ekranlar sadece bunu okur ve buradaki fonksiyonları çağırır.
 class StudyoDurumu extends ChangeNotifier {
   int ton = 2;
   final List<List<Akor?>> sayfalar = [List<Akor?>.filled(hucreSayisi, null)];
+  // Her akor kutusunun kendi arpej deseni. null = parçanın kendi kalıbı çalar.
+  // sayfalar ile aynı şekilde tutulur (aynı sayfa sayısı, aynı kutu sayısı).
+  final List<List<String?>> desenler = [List<String?>.filled(hucreSayisi, null)];
   int aktifSayfa = 0;
   int secili = 0;
   Durum durum = Durum.durdu;
@@ -139,6 +191,20 @@ class StudyoDurumu extends ChangeNotifier {
 
   void hucreSil(int i) {
     tablo[i] = null;
+    desenler[aktifSayfa][i] = null;
+    _bildir();
+  }
+
+  // ---------- Akora özel arpej ----------
+
+  String? desenAl(int sayfa, int hucre) {
+    if (sayfa < 0 || sayfa >= desenler.length) return null;
+    return desenler[sayfa][hucre];
+  }
+
+  void desenAyarla(int sayfa, int hucre, String? desen) {
+    if (sayfa < 0 || sayfa >= desenler.length) return;
+    desenler[sayfa][hucre] = (desen == null || desen.isEmpty) ? null : desen;
     _bildir();
   }
 
@@ -152,6 +218,7 @@ class StudyoDurumu extends ChangeNotifier {
   void sayfaEkle() {
     if (sayfalar.length >= enFazlaSayfa) return;
     sayfalar.add(List<Akor?>.filled(hucreSayisi, null));
+    desenler.add(List<String?>.filled(hucreSayisi, null));
     aktifSayfa = sayfalar.length - 1;
     secili = 0;
     _bildir();
@@ -160,6 +227,7 @@ class StudyoDurumu extends ChangeNotifier {
   void sayfaSilKesin() {
     if (sayfalar.length <= 1) return;
     sayfalar.removeAt(aktifSayfa);
+    desenler.removeAt(aktifSayfa);
     if (aktifSayfa >= sayfalar.length) aktifSayfa = sayfalar.length - 1;
     secili = 0;
     _bildir();
@@ -194,6 +262,8 @@ class StudyoDurumu extends ChangeNotifier {
       if (temizle) {
         sayfalar.clear();
         sayfalar.add(List<Akor?>.filled(hucreSayisi, null));
+        desenler.clear();
+        desenler.add(List<String?>.filled(hucreSayisi, null));
       } else {
         baslangic = sonDoluIndex() + 1;
       }
@@ -203,8 +273,10 @@ class StudyoDurumu extends ChangeNotifier {
         final s = idx ~/ hucreSayisi;
         while (sayfalar.length <= s) {
           sayfalar.add(List<Akor?>.filled(hucreSayisi, null));
+          desenler.add(List<String?>.filled(hucreSayisi, null));
         }
         sayfalar[s][idx % hucreSayisi] = a;
+        desenler[s][idx % hucreSayisi] = null;
         yerlesen++;
       }
       aktifSayfa =
@@ -344,18 +416,27 @@ class StudyoDurumu extends ChangeNotifier {
       if (i > son) i = 0;
       final akor = akorAl(i);
       final sayfa = i ~/ hucreSayisi;
+      // Bu akor kutusuna özel arpej seçilmişse melodik parçalar onu çalar.
+      final ozelDesen = desenAl(sayfa, i % hucreSayisi);
 
       // Çalacak parçaların planı. Kutu süresi gitar/piyano kalıbının
       // uzunluğuna göre belirlenir (en uzun olan). Melodik parça yoksa
       // (sadece davul) kutu bir tam ölçü sürer.
       final planlar = <Parca, List<List<String>>>{};
+      final calKaliplari = <Parca, Kalip>{};
       int enUzun = 0;
       for (final p in parcalar) {
-        if (p.sessiz || !p.kalip.olcuVar(olcu.ad)) continue;
-        final a = p.kalip.adimlar(olcu.ad);
+        if (p.sessiz) continue;
+        Kalip kalip = p.kalip;
+        if (ozelDesen != null && kalip.enstruman != 'davul') {
+          kalip = _ozelKalip(kalip, ozelDesen);
+        }
+        if (!kalip.olcuVar(olcu.ad)) continue;
+        final a = kalip.adimlar(olcu.ad);
         if (a.isEmpty) continue;
         planlar[p] = a;
-        if (p.kalip.enstruman != 'davul' && a.length > enUzun) {
+        calKaliplari[p] = kalip;
+        if (kalip.enstruman != 'davul' && a.length > enUzun) {
           enUzun = a.length;
         }
       }
@@ -374,7 +455,7 @@ class StudyoDurumu extends ChangeNotifier {
             if (p.kalip.enstruman == 'gitar') {
               aktifGitarTuru = gitarTuruAl(p);
             }
-            kalipAdimiCal(p.kalip, akor, olaylar, p.ses);
+            kalipAdimiCal(calKaliplari[p]!, akor, olaylar, p.ses);
           });
         }
         adimNo.value = adim;

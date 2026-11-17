@@ -9,19 +9,33 @@ class TabloKarti extends StatelessWidget {
   final StudyoDurumu d;
   const TabloKarti(this.d, {super.key});
 
-  Widget _hucre(int i) {
+  void _desenSec(BuildContext context, int i) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: renkKart,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _DesenSecici(d, d.aktifSayfa, i),
+    );
+  }
+
+  Widget _hucre(BuildContext context, int i) {
     final akor = d.tablo[i];
     final secildi = i == d.secili;
     final calan = (d.aktifSayfa * hucreSayisi + i) == d.calanIndex;
     final baz = akor == null ? null : akorRengi(akor);
     final zemin =
         baz == null ? renkKum : (calan ? baz : Color.lerp(renkKrem, baz, 0.6)!);
+    final yaziRenk = baz == null ? renkToprakAcik : yaziRengi(zemin);
+    final desen = akor == null ? null : d.desenAl(d.aktifSayfa, i);
     return Expanded(
       child: GestureDetector(
         onTap: () => d.hucreSec(i),
         onLongPress: () => d.hucreSil(i),
         child: Container(
-          height: 48,
+          height: 56,
           margin: const EdgeInsets.all(3),
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -32,14 +46,55 @@ class TabloKarti extends StatelessWidget {
               width: calan ? 3 : (secildi ? 2.5 : 1),
             ),
           ),
-          child: Text(
-            akor?.adi ?? '+',
-            style: TextStyle(
-              fontSize: akor == null ? 18 : 16,
-              fontWeight: FontWeight.w800,
-              color: baz == null ? renkToprakAcik : yaziRengi(zemin),
-            ),
-          ),
+          child: akor == null
+              ? Text(
+                  '+',
+                  style: TextStyle(fontSize: 18, color: yaziRenk),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      akor.adi,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: yaziRenk,
+                      ),
+                    ),
+                    // İmleç: dokununca bu akorun arpej seçenekleri açılır.
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        d.hucreSec(i);
+                        _desenSec(context, i);
+                      },
+                      child: SizedBox(
+                        height: 20,
+                        width: double.infinity,
+                        child: Center(
+                          child: desen == null
+                              ? Icon(Icons.arrow_drop_down,
+                                  size: 20, color: yaziRenk)
+                              : Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 3),
+                                  child: Text(
+                                    desen.replaceAll(' ', ''),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: yaziRenk,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -217,7 +272,7 @@ class TabloKarti extends StatelessWidget {
                 children: [
                   for (int s = 0; s < 4; s++)
                     Row(children: [
-                      for (int k = 0; k < 4; k++) _hucre(s * 4 + k),
+                      for (int k = 0; k < 4; k++) _hucre(context, s * 4 + k),
                     ]),
                   const SizedBox(height: 4),
                   _sayfaCubugu(context),
@@ -235,7 +290,7 @@ class TabloKarti extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Dokun: seç. Basılı tut: sil.',
+                  'Dokun: seç. Basılı tut: sil. Ok: arpej.',
                   style: TextStyle(fontSize: 11, color: renkToprakAcik),
                 ),
               ),
@@ -420,6 +475,140 @@ class _YaziDialoguDurumu extends State<_YaziDialogu> {
           child: Text(_okundu ? 'Aktar' : 'Oku'),
         ),
       ],
+    );
+  }
+}
+
+// Bir akor kutusunun arpej seçimi: hazır desenler ya da elle yazılan desen.
+class _DesenSecici extends StatefulWidget {
+  final StudyoDurumu d;
+  final int sayfa;
+  final int hucre;
+  const _DesenSecici(this.d, this.sayfa, this.hucre);
+
+  @override
+  State<_DesenSecici> createState() => _DesenSeciciDurumu();
+}
+
+class _DesenSeciciDurumu extends State<_DesenSecici> {
+  final TextEditingController _yazi = TextEditingController();
+  late int _adim;
+  String? _hata;
+
+  @override
+  void initState() {
+    super.initState();
+    final mevcut = widget.d.desenAl(widget.sayfa, widget.hucre);
+    if (mevcut != null) {
+      _adim = mevcut.split(' ').length;
+      _yazi.text = mevcut.replaceAll(' ', '');
+    } else if (arpejAdimSayilari.contains(widget.d.olcu.slot)) {
+      _adim = widget.d.olcu.slot;
+    } else {
+      _adim = arpejAdimSayilari.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _yazi.dispose();
+    super.dispose();
+  }
+
+  void _sec(String? desen) {
+    widget.d.desenAyarla(widget.sayfa, widget.hucre, desen);
+    Navigator.pop(context);
+  }
+
+  void _yazidanUygula() {
+    final desen = desenTemizle(_yazi.text);
+    if (desen == null) {
+      setState(() => _hata =
+          'Desen okunamadı. p i m a gibi yaz (harfler: p P i m a c d u b h, nokta = boşluk).');
+      return;
+    }
+    _sec(desen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.d;
+    final akor = d.akorAl(widget.sayfa * hucreSayisi + widget.hucre);
+    final mevcut = d.desenAl(widget.sayfa, widget.hucre);
+    final liste = [
+      for (final x in arpejHavuzu)
+        if (x.split(' ').length == _adim) x,
+    ];
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 14, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${akor?.adi ?? ''} akoru için arpej',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            secChip('Varsayılan (parçanın kalıbı)', mevcut == null,
+                () => _sec(null)),
+            const SizedBox(height: 10),
+            altBaslik('Adım sayısı:'),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              children: [
+                for (final n in arpejAdimSayilari)
+                  secChip('$n', _adim == n, () => setState(() => _adim = n)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            altBaslik('Desenler:'),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              children: [
+                for (final x in liste)
+                  secChip(x, mevcut == x, () => _sec(x)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            altBaslik('Kendin yaz:'),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _yazi,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                      hintText: 'pima ya da p i m a',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _yazidanUygula,
+                  child: const Text('Uygula'),
+                ),
+              ],
+            ),
+            if (_hata != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  _hata!,
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
