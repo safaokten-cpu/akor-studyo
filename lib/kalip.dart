@@ -1,10 +1,28 @@
+import 'davul_stilleri.dart';
+
 const enstrumanAdlari = {
   'gitar': 'Gitar',
   'piyano': 'Piyano',
   'davul': 'Davul',
 };
 
+// Standart davul kitinin sesleri (açılışta yüklenir).
 const davulSesleri = ['kick', 'snare', 'hihat'];
+
+// Rock ve Jazz gibi tam kitlerin sesleri: davul_{kit}_{ses}.wav
+const davulKitSesleri = [
+  'kick',
+  'snare',
+  'hihat',
+  'tom_kucuk',
+  'tom_orta',
+  'tom_buyuk',
+  'tom_floor',
+  'crash',
+  'ride',
+  'splash',
+  'marakas',
+];
 
 const tarzlar = [
   'Rock',
@@ -15,6 +33,7 @@ const tarzlar = [
   'Marş',
   'Bolero',
   'Türk',
+  'Jazz',
 ];
 
 // Bir ölçü = 8'lik nota sayısı. gruplar = vuruş grupları.
@@ -50,7 +69,8 @@ List<String> olcuAdaylari(int adim) => [
 // '+' = aynı anda.
 // Gitar/piyano: p=bas, P=ikinci bas, i/m/a=parmaklar, c=tüm akor,
 // h=sağ el akoru (piyano), d=aşağı strum, u=yukarı strum, b=bas teller (rock).
-// Davul: k=kick, s=snare, h=hihat.
+// Davul: k=kick, s=snare, e=hayalet snare, h=hihat, r=ride, c=crash, x=splash,
+// m=marakas, 1-4=tomlar (küçük, orta, büyük, floor). Ayrıntı: davul_stilleri.dart
 class Kalip {
   final String ad;
   final String enstruman;
@@ -287,91 +307,14 @@ List<Kalip> _arpListe(
       for (final d in desenler) Kalip('Arpej $d', ens, tarz, {olcu: d}),
     ];
 
-String _davulUret(String tip, List<int> g) {
-  final n = g.length;
-  final slot = g.fold<int>(0, (a, b) => a + b);
-  final bas = <int>[];
-  var s = 0;
-  for (final x in g) {
-    bas.add(s);
-    s += x;
-  }
-  final roller = n == 2
-      ? ['k', 's']
-      : n == 3
-          ? ['k', 's', 's']
-          : n == 4
-              ? ['k', 's', 'k', 's']
-              : ['k', 's', 'k', 'k', 's'];
-  final t = List<List<String>>.generate(slot, (_) => <String>[]);
-  if (tip == 'rock' || tip == 'pop') {
-    for (int i = 0; i < slot; i++) {
-      t[i].add('h');
-    }
-    for (int gi = 0; gi < n; gi++) {
-      t[bas[gi]].add(roller[gi]);
-    }
-    if (tip == 'rock' && n == 4 && g[2] > 1) {
-      t[bas[2] + 1].add('k');
-    }
-  } else if (tip == 'hafif') {
-    final snareGrup = n.isEven ? n ~/ 2 : n - 1;
-    for (int gi = 0; gi < n; gi++) {
-      if (gi == 0) {
-        t[bas[gi]].add('k');
-      } else if (gi == snareGrup) {
-        t[bas[gi]].add('s');
-      } else {
-        t[bas[gi]].add('h');
-      }
-    }
-  } else if (tip == 'vals') {
-    // bas - pa - pa
-    for (int gi = 0; gi < n; gi++) {
-      t[bas[gi]].add(gi == 0 ? 'k' : 's');
-    }
-  } else if (tip == 'mars') {
-    // düm - tek, aralarda hafif snare
-    var gi = 0;
-    for (int i = 0; i < slot; i++) {
-      if (bas.contains(i)) {
-        t[i].add(gi.isEven ? 'k' : 's');
-        gi++;
-      } else {
-        t[i].add('s');
-      }
-    }
-  } else if (tip == 'bolero') {
-    for (int i = 0; i < slot; i++) {
-      t[i].add('h');
-    }
-    t[0].add('k');
-    t[3].add('k');
-    t[bas[n - 1]].add('s');
-  } else if (tip == 'turk') {
-    // düm - tek, her grubun sonunda hafif hihat
-    for (int gi = 0; gi < n; gi++) {
-      t[bas[gi]].add(gi.isEven ? 'k' : 's');
-      if (g[gi] > 1) {
-        t[bas[gi] + g[gi] - 1].add('h');
-      }
-    }
-  } else {
-    for (int i = 0; i < slot; i++) {
-      if (i.isEven) {
-        t[i].add('k');
-        t[i].add('h');
-      } else {
-        t[i].add('s');
-      }
-    }
-  }
-  return t.map((e) => e.isEmpty ? '.' : e.join('+')).join(' ');
-}
-
-Map<String, String> _davulDesenleri(String tip) => {
-      for (final o in olculer) o.ad: _davulUret(tip, o.gruplar),
-    };
+// Davul kalıpları davul_stilleri.dart'taki stillerden, her ölçü için
+// o ölçünün vuruş gruplarına göre üretilir.
+List<Kalip> _davulKaliplari() => [
+      for (final s in davulStilleri)
+        Kalip(s.ad, 'davul', s.tarz, {
+          for (final o in olculer) o.ad: s.uret(o.gruplar),
+        }),
+    ];
 
 final List<Kalip> kaliplar = [
   // ---- Gitar ----
@@ -544,12 +487,5 @@ final List<Kalip> kaliplar = [
   Kalip('Aksak semai', 'piyano', 'Türk', {'10/8': 'c . . h . c . h . h'}),
   ..._arpejler('piyano', 'Türk', ['turka', 'turkb']),
   // ---- Davul ----
-  Kalip('Rock', 'davul', 'Rock', _davulDesenleri('rock')),
-  Kalip('Pop', 'davul', 'Pop', _davulDesenleri('pop')),
-  Kalip('Hafif', 'davul', 'Akustik', _davulDesenleri('hafif')),
-  Kalip('Tren ritmi', 'davul', 'Country', _davulDesenleri('tren')),
-  Kalip('Vals', 'davul', 'Vals', _davulDesenleri('vals')),
-  Kalip('Marş', 'davul', 'Marş', _davulDesenleri('mars')),
-  Kalip('Bolero', 'davul', 'Bolero', _davulDesenleri('bolero')),
-  Kalip('Düyek', 'davul', 'Türk', _davulDesenleri('turk')),
+  ..._davulKaliplari(),
 ];

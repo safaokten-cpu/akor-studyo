@@ -9,6 +9,7 @@ class SesTuru {
   final String ad;
   // Ses dosyalarının öneki. Dosya adı: {onek}_{nota}_{oktav}.wav
   // Ör. önek 'gitar_clean' -> gitar_clean_mi_4.wav
+  // Davul kitlerinde: {onek}_{ses}.wav, ör. 'davul_rock' -> davul_rock_kick.wav
   final String onek;
   // Türün ses seviyesi çarpanı (1.0 = olduğu gibi).
   final double seviye;
@@ -43,16 +44,33 @@ const piyanoTurleri = <SesTuru>[
   SesTuru(kod: 'standart', ad: 'Piyano', onek: 'piyano'),
 ];
 
+// Davul kitleri. Standart kit eski 3 sesten oluşur (davul_kick, davul_snare,
+// davul_hihat). Rock ve Jazz kitlerinin her biri 11 ses içerir:
+// kick, snare, hihat, tom_kucuk, tom_orta, tom_buyuk, tom_floor, crash,
+// ride, splash, marakas. Yeni kit eklemek: 11 wav dosyasını
+// davul_{kit}_{ses}.wav adıyla assets/sesler/ klasörüne koy, buraya satır ekle.
+const davulTurleri = <SesTuru>[
+  SesTuru(kod: 'standart', ad: 'Standart', onek: 'davul'),
+  SesTuru(kod: 'rock', ad: 'Rock', onek: 'davul_rock'),
+  SesTuru(kod: 'jazz', ad: 'Jazz', onek: 'davul_jazz'),
+];
+
 const sesKatalogu = <String, List<SesTuru>>{
   'gitar': gitarTurleri,
   'piyano': piyanoTurleri,
+  'davul': davulTurleri,
 };
 
 const varsayilanGitarTuru = 'akustik';
+const varsayilanDavulTuru = 'standart';
 
 // O an çalınan gitar parçasının türü. durum.dart her gitar parçasını çalmadan
 // hemen önce bunu ayarlar, gitar.dart ses dosyasını buradan seçer.
 SesTuru aktifGitarTuru = gitarTurleri.first;
+
+// O an çalınan davul parçasının kiti. durum.dart her davul parçasını çalmadan
+// hemen önce bunu ayarlar, davul.dart ses dosyasını buradan seçer.
+SesTuru aktifDavulTuru = davulTurleri.first;
 
 SesTuru? sesTuruBul(String ens, String kod) {
   final liste = sesKatalogu[ens];

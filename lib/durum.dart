@@ -93,7 +93,12 @@ class StudyoDurumu extends ChangeNotifier {
   Kalip? secKalip;
 
   // Sounds ekranında seçili gitar türü ve her parçanın kendi türü.
-  String secTur = varsayilanGitarTuru;
+  // Her enstrüman için Sounds'ta seçili tür/kit (gitar türü, davul kiti).
+  final Map<String, String> secTurler = {
+    'gitar': varsayilanGitarTuru,
+    'davul': varsayilanDavulTuru,
+  };
+  String get secTur => secTurler[secEns] ?? '';
   final Expando<String> _parcaTurleri = Expando<String>();
   // Şu an yüklenmekte olan türlerin önekleri.
   final Set<String> yukleniyor = {};
@@ -123,20 +128,30 @@ class StudyoDurumu extends ChangeNotifier {
   SesTuru gitarTuruAl(Parca p) =>
       sesTuruBul('gitar', parcaTuruKodu(p)) ?? gitarTurleri.first;
 
-  bool yukleniyorMu(SesTuru t) => yukleniyor.contains(t.onek);
+  SesTuru davulTuruAl(Parca p) =>
+      sesTuruBul('davul', parcaTuruKodu(p)) ?? davulTurleri.first;
 
-  // Sounds'ta tür seçilince: seç, sesleri yükle.
-  void turSec(String kod) {
-    secTur = kod;
-    _bildir();
-    _turuHazirla('gitar', kod);
+  // Parçanın türü/kiti (Loop Page menüsü için, her enstrümanda çalışır).
+  SesTuru? parcaTuru(Parca p) {
+    final liste = sesKatalogu[p.kalip.enstruman];
+    if (liste == null || liste.isEmpty) return null;
+    return sesTuruBul(p.kalip.enstruman, parcaTuruKodu(p)) ?? liste.first;
   }
 
-  // Loop Page'de bir parçanın türünü değiştirir.
+  bool yukleniyorMu(SesTuru t) => yukleniyor.contains(t.onek);
+
+  // Sounds'ta tür/kit seçilince: seç, sesleri yükle.
+  void turSec(String kod) {
+    secTurler[secEns] = kod;
+    _bildir();
+    _turuHazirla(secEns, kod);
+  }
+
+  // Loop Page'de bir parçanın türünü/kitini değiştirir.
   void parcaTurSec(Parca p, String kod) {
     _parcaTurleri[p] = kod;
     _bildir();
-    _turuHazirla('gitar', kod);
+    _turuHazirla(p.kalip.enstruman, kod);
   }
 
   Future<void> _turuHazirla(String ens, String kod) async {
@@ -149,11 +164,12 @@ class StudyoDurumu extends ChangeNotifier {
     _bildir();
   }
 
-  // Çalmadan önce parçalardaki gitar türlerinin yüklü olduğundan emin olur.
+  // Çalmadan önce parçalardaki tür/kit seslerinin yüklü olduğundan emin olur.
   Future<void> _calacakTurleriHazirla() async {
     for (final p in List<Parca>.of(parcalar)) {
-      if (p.kalip.enstruman == 'gitar') {
-        await _turuHazirla('gitar', parcaTuruKodu(p));
+      final ens = p.kalip.enstruman;
+      if (sesKatalogu.containsKey(ens)) {
+        await _turuHazirla(ens, parcaTuruKodu(p));
       }
     }
   }
@@ -161,7 +177,8 @@ class StudyoDurumu extends ChangeNotifier {
   // Akor önizlemesinde hangi gitar türü duyulsun.
   SesTuru _onizlemeGitarTuru() {
     if (secEns == 'gitar') {
-      return sesTuruBul('gitar', secTur) ?? gitarTurleri.first;
+      return sesTuruBul('gitar', secTurler['gitar'] ?? '') ??
+          gitarTurleri.first;
     }
     for (final p in parcalar) {
       if (p.kalip.enstruman == 'gitar' && !p.sessiz) return gitarTuruAl(p);
@@ -320,7 +337,7 @@ class StudyoDurumu extends ChangeNotifier {
     );
     final yeni = Parca(kalip);
     final eskiNo = parcalar.indexWhere((p) => p.kalip.enstruman == 'gitar');
-    String tur = secTur;
+    String tur = secTurler['gitar'] ?? varsayilanGitarTuru;
     if (eskiNo >= 0) {
       final eski = parcalar[eskiNo];
       tur = parcaTuruKodu(eski);
@@ -386,6 +403,12 @@ class StudyoDurumu extends ChangeNotifier {
 
   void enstrumanSec(String e) {
     secEns = e;
+    // Seçili tarzın bu enstrümanda kalıbı yoksa Tümü'ne dön.
+    if (secTarz != 'Tümü' &&
+        !kaliplar.any((k) => k.enstruman == e && k.tarz == secTarz)) {
+      secTarz = 'Tümü';
+    }
+    secKalip = null;
     _bildir();
   }
 
@@ -402,13 +425,15 @@ class StudyoDurumu extends ChangeNotifier {
   void parcaEkle(Kalip k) {
     if (parcalar.length >= enFazlaParca) return;
     final p = Parca(k);
-    if (k.enstruman == 'gitar') {
-      _parcaTurleri[p] = secTur;
+    final ens = k.enstruman;
+    final kod = secTurler[ens];
+    if (kod != null) {
+      _parcaTurleri[p] = kod;
     }
     parcalar.add(p);
     _bildir();
-    if (k.enstruman == 'gitar') {
-      _turuHazirla('gitar', secTur);
+    if (kod != null) {
+      _turuHazirla(ens, kod);
     }
   }
 
@@ -470,6 +495,8 @@ class StudyoDurumu extends ChangeNotifier {
             // Gitar parçası kendi türüyle çalsın.
             if (p.kalip.enstruman == 'gitar') {
               aktifGitarTuru = gitarTuruAl(p);
+            } else if (p.kalip.enstruman == 'davul') {
+              aktifDavulTuru = davulTuruAl(p);
             }
             kalipAdimiCal(calKaliplari[p]!, akor, olaylar, p.ses);
           });

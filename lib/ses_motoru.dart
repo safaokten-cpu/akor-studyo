@@ -11,8 +11,9 @@ const enAlcakNota = 48;
 const enYuksekNota = 78;
 
 // Kanallar: 0-5 gitar telleri (banka 0), 6-11 piyano, 12 kick, 13 snare,
-// 14 hihat, 15-32 ek gitar bankaları (3 banka x 6 tel).
-const _kanalSayisi = 33;
+// 14 hihat, 15-32 ek gitar bankaları (3 banka x 6 tel),
+// 33 ride, 34 crash, 35 splash, 36 marakas, 37-40 tomlar (küçük, orta, büyük, floor).
+const _kanalSayisi = 41;
 final Map<String, AudioSource> _kaynaklar = {};
 final List<SoundHandle?> _kanallar =
     List<SoundHandle?>.filled(_kanalSayisi, null);
@@ -27,8 +28,15 @@ final Set<String> _tamam = {};
 String sesDosyaAdi(String ens, int m) => '${ens}_${notalar[m % 12]}_${m ~/ 12}';
 
 // Bir önekin tüm notalarının dosya adları.
+// Davul kitlerinde nota yok: {onek}_{ses}, ör. davul_rock_kick.
 List<String> _onekDosyalari(String onek) {
   final liste = <String>[];
+  if (onek.startsWith('davul')) {
+    for (final d in davulKitSesleri) {
+      liste.add('${onek}_$d');
+    }
+    return liste;
+  }
   for (int m = enAlcakNota; m <= enYuksekNota; m++) {
     liste.add(sesDosyaAdi(onek, m));
   }
@@ -74,11 +82,14 @@ Future<void> seslerHazirla() async {
     // Sürüm desteklemiyorsa varsayılan kalır.
   }
   await _dosyalariYukle(_tumDosyalar());
-  _tamam.addAll(['gitar', 'piyano']);
+  _tamam.addAll(['gitar', 'piyano', 'davul']);
 }
 
 // Bu önekin sesleri yüklendi mi?
 bool sesOnekiHazirMi(String onek) => _tamam.contains(onek);
+
+// Bu ses dosyası yüklendi mi? (davul.dart yedek ses seçerken kullanır.)
+bool sesYuklu(String ad) => _kaynaklar.containsKey(ad);
 
 // Bir türün seslerini yükler (ör. 'gitar_clean'). Zaten yüklüyse hemen döner,
 // aynı anda iki kez istenirse tek yükleme yapılır.

@@ -42,13 +42,13 @@ class SoundsKarti extends StatelessWidget {
         const SizedBox(height: 10),
         // Tür: sadece birden fazla türü olan enstrümanda görünür (şimdilik gitar).
         if (turSecimiVar(d.secEns)) ...[
-          altBaslik('Tür:'),
+          altBaslik(d.secEns == 'davul' ? 'Kit:' : 'Tür:'),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
             runSpacing: 2,
             children: [
-              for (final t in gitarTurleri)
+              for (final t in sesKatalogu[d.secEns] ?? const <SesTuru>[])
                 secChip(
                   d.yukleniyorMu(t) ? '${t.ad} (yükleniyor…)' : t.ad,
                   d.secTur == t.kod,
@@ -64,7 +64,12 @@ class SoundsKarti extends StatelessWidget {
           spacing: 8,
           runSpacing: 2,
           children: [
-            for (final t in ['Tümü', ...tarzlar])
+            // Sadece bu enstrümanda kalıbı olan tarzlar gösterilir.
+            for (final t in [
+              'Tümü',
+              ...tarzlar.where((x) =>
+                  kaliplar.any((k) => k.enstruman == d.secEns && k.tarz == x)),
+            ])
               secChip(t, d.secTarz == t, () => d.tarzSec(t)),
           ],
         ),

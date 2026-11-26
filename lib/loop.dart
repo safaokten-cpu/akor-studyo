@@ -11,16 +11,19 @@ class LoopKarti extends StatelessWidget {
   final StudyoDurumu d;
   const LoopKarti(this.d, {super.key});
 
-  // Gitar parçasının türünü gösteren küçük menü (Akustik, Clean...).
+  // Parçanın türünü/kitini gösteren küçük menü (Akustik, Clean, Rock kit...).
+  // Sadece birden fazla türü olan enstrümanlarda görünür.
   Widget _turSecici(Parca parca, Color renk) {
-    if (parca.kalip.enstruman != 'gitar') return const SizedBox.shrink();
-    final tur = d.gitarTuruAl(parca);
+    final ens = parca.kalip.enstruman;
+    if (!turSecimiVar(ens)) return const SizedBox.shrink();
+    final tur = d.parcaTuru(parca);
+    if (tur == null) return const SizedBox.shrink();
     return PopupMenuButton<String>(
-      tooltip: 'Gitar türü',
+      tooltip: ens == 'davul' ? 'Davul kiti' : 'Tür',
       padding: EdgeInsets.zero,
       onSelected: (kod) => d.parcaTurSec(parca, kod),
       itemBuilder: (_) => [
-        for (final t in gitarTurleri)
+        for (final t in sesKatalogu[ens] ?? const <SesTuru>[])
           PopupMenuItem<String>(
             value: t.kod,
             child: Text(t.ad),
