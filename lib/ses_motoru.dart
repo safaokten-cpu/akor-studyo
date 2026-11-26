@@ -85,6 +85,12 @@ Future<void> seslerHazirla() async {
   _tamam.addAll(['gitar', 'piyano', 'davul']);
 }
 
+// Yüklenemeyen (bulunamayan) dosyalar: önek -> dosya adları.
+final Map<String, List<String>> _eksikler = {};
+
+// Bir türün yüklenemeyen dosyaları (yükleme bittikten sonra dolar).
+List<String> sesEksikleri(String onek) => _eksikler[onek] ?? const <String>[];
+
 // Bu önekin sesleri yüklendi mi?
 bool sesOnekiHazirMi(String onek) => _tamam.contains(onek);
 
@@ -97,7 +103,12 @@ Future<void> sesOnekiYukle(String onek) {
   if (!_hazir) return Future.value();
   if (_tamam.contains(onek)) return Future.value();
   return _yuklemeler.putIfAbsent(onek, () async {
-    await _dosyalariYukle(_onekDosyalari(onek));
+    final adlar = _onekDosyalari(onek);
+    await _dosyalariYukle(adlar);
+    _eksikler[onek] = [
+      for (final ad in adlar)
+        if (!_kaynaklar.containsKey(ad)) ad,
+    ];
     _tamam.add(onek);
   });
 }

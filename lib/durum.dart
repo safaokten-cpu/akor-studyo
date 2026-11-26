@@ -143,9 +143,18 @@ class StudyoDurumu extends ChangeNotifier {
   // Sounds'ta tür/kit seçilince: seç, sesleri yükle.
   void turSec(String kod) {
     secTurler[secEns] = kod;
+    // Davulda kit seçimi çalan davul parçalarına da uygulanır (genelde tek davul var).
+    if (secEns == 'davul') {
+      for (final p in parcalar) {
+        if (p.kalip.enstruman == 'davul') _parcaTurleri[p] = kod;
+      }
+    }
     _bildir();
     _turuHazirla(secEns, kod);
   }
+
+  // Seçili türün yüklenemeyen ses dosyaları (yoksa boş liste).
+  List<String> eksikSesler(SesTuru t) => sesEksikleri(t.onek);
 
   // Loop Page'de bir parçanın türünü/kitini değiştirir.
   void parcaTurSec(Parca p, String kod) {

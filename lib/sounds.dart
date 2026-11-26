@@ -11,6 +11,23 @@ class SoundsKarti extends StatelessWidget {
   final StudyoDurumu d;
   const SoundsKarti(this.d, {super.key});
 
+  // Seçili kitin/türün ses dosyaları bulunamadıysa küçük kırmızı uyarı.
+  Widget _eksikUyarisi() {
+    final tur = sesTuruBul(d.secEns, d.secTur);
+    if (tur == null) return const SizedBox.shrink();
+    final eksik = d.eksikSesler(tur);
+    if (eksik.isEmpty) return const SizedBox.shrink();
+    final ilk = eksik.take(3).map((x) => '$x.wav').join(', ');
+    final fazla = eksik.length > 3 ? ' ve ${eksik.length - 3} tane daha' : '';
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        'Eksik ses dosyası: $ilk$fazla. Dosyalar assets/sesler/ içinde mi, adları aynı mı kontrol et.',
+        style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+      ),
+    );
+  }
+
   Widget _icerik() {
     final filtre = kaliplar
         .where((k) =>
@@ -56,6 +73,7 @@ class SoundsKarti extends StatelessWidget {
                 ),
             ],
           ),
+          _eksikUyarisi(),
           const SizedBox(height: 10),
         ],
         altBaslik('Tarz:'),
