@@ -68,6 +68,9 @@ class StudyoDurumu extends ChangeNotifier {
   // Her akor kutusunun kendi arpej deseni. null = parçanın kendi kalıbı çalar.
   // sayfalar ile aynı şekilde tutulur (aynı sayfa sayısı, aynı kutu sayısı).
   final List<List<String?>> desenler = [List<String?>.filled(hucreSayisi, null)];
+
+  // En son kaydedilen ya da açılan şarkının adı (Kaydet penceresinde hazır gelir).
+  String sonSarkiAdi = '';
   int aktifSayfa = 0;
   int secili = 0;
   Durum durum = Durum.durdu;
@@ -377,6 +380,142 @@ class StudyoDurumu extends ChangeNotifier {
       }
     }
     olcu = olculer.firstWhere((o) => o.ad == secilen);
+  }
+
+  // ---------- Şarkı kaydetme ve açma ----------
+
+  // Şarkının her şeyini (akorlar, arpejler, ton, tempo, ölçü, parçalar)
+  // JSON'a çevrilebilir bir haritaya koyar.
+  Map<String, dynamic> sarkiVerisi() => {
+        'ton': ton,
+        'tempo': tempo,
+        'olcu': olcu.ad,
+        'sayfalar': [
+          for (final s in sayfalar)
+            [
+              for (final a in s) a == null ? null : {'k': a.kok, 't': a.tur},
+            ],
+        ],
+        'desenler': [
+          for (final s in desenler) List<String?>.from(s),
+        ],
+        'parcalar': [
+          for (final p in parcalar)
+            {
+              'ens': p.kalip.enstruman,
+              'tarz': p.kalip.tarz,
+              'ad': p.kalip.ad,
+              'd': p.kalip.desenler,
+              'ses': p.ses,
+              'sessiz': p.sessiz,
+              'tur': parcaTuruKodu(p),
+            },
+        ],
+      };
+
+  // Kaydedilmiş şarkıyı açar. Bozuk ya da eksik kısımlar atlanır.
+  void sarkiYukle(Map<String, dynamic> v) {
+    durdur();
+
+    final yeniTon = (v['ton'] as num?)?.toInt();
+    if (yeniTon != null) ton = ((yeniTon % 12) + 12) % 12;
+    final yeniTempo = (v['tempo'] as num?)?.toInt();
+    if (yeniTempo != null) tempo = yeniTempo.clamp(60, 180).toInt();
+    final olcuAd = v['olcu']?.toString();
+    for (final o in olculer) {
+      if (o.ad == olcuAd) olcu = o;
+    }
+
+    // Akorlar ve her akorun arpej deseni
+    final yeniSayfalar = <List<Akor?>>[];
+    final yeniDesenler = <List<String?>>[];
+    final hamSayfalar = v['sayfalar'];
+    final hamDesenler = v['desenler'];
+    if (hamSayfalar is List) {
+      for (int s = 0; s < hamSayfalar.length; s++) {
+        final sayfa = List<Akor?>.filled(hucreSayisi, null);
+        final desen = List<String?>.filled(hucreSayisi, null);
+        final ham = hamSayfalar[s];
+        if (ham is List) {
+          for (int i = 0; i < ham.length && i < hucreSayisi; i++) {
+            final a = ham[i];
+            if (a is Map) {
+              final kok = (a['k'] as num?)?.toInt();
+              final tur = a['t']?.toString();
+              if (kok != null &&
+                  kok >= 0 &&
+                  kok < 12 &&
+                  tur != null &&
+                  akorTurleri.any((t) => t.kod == tur)) {
+                sayfa[i] = Akor(kok, tur);
+              }
+            }
+          }
+        }
+        if (hamDesenler is List && s < hamDesenler.length) {
+          final hd = hamDesenler[s];
+          if (hd is List) {
+            for (int i = 0; i < hd.length && i < hucreSayisi; i++) {
+              final x = hd[i];
+              if (x is String && x.isNotEmpty && sayfa[i] != null) {
+                desen[i] = x;
+              }
+            }
+          }
+        }
+        yeniSayfalar.add(sayfa);
+        yeniDesenler.add(desen);
+      }
+    }
+    if (yeniSayfalar.isEmpty) {
+      yeniSayfalar.add(List<Akor?>.filled(hucreSayisi, null));
+      yeniDesenler.add(List<String?>.filled(hucreSayisi, null));
+    }
+    sayfalar
+      ..clear()
+      ..addAll(yeniSayfalar);
+    desenler
+      ..clear()
+      ..addAll(yeniDesenler);
+
+    // Parçalar (gitar, piyano, davul): kalıbın kendisi kaydedildiği için
+    // sonradan kalıp listesi değişse bile şarkı aynı çalar.
+    final hamParcalar = v['parcalar'];
+    if (hamParcalar is List) {
+      parcalar.clear();
+      for (final h in hamParcalar) {
+        if (parcalar.length >= enFazlaParca) break;
+        if (h is! Map) continue;
+        final ens = h['ens']?.toString() ?? '';
+        if (!enstrumanAdlari.containsKey(ens)) continue;
+        final hd = h['d'];
+        if (hd is! Map) continue;
+        final haritasi = <String, String>{
+          for (final e in hd.entries) e.key.toString(): e.value.toString(),
+        };
+        if (haritasi.isEmpty) continue;
+        final p = Parca(Kalip(
+          h['ad']?.toString() ?? 'Özel',
+          ens,
+          h['tarz']?.toString() ?? 'Akustik',
+          haritasi,
+        ));
+        p.ses = (h['ses'] as num?)?.toDouble() ?? 0.8;
+        p.sessiz = h['sessiz'] == true;
+        final tur = h['tur']?.toString();
+        if (tur != null && sesTuruBul(ens, tur) != null) {
+          _parcaTurleri[p] = tur;
+          _turuHazirla(ens, tur);
+        }
+        parcalar.add(p);
+      }
+    }
+
+    aktifSayfa = 0;
+    secili = 0;
+    calanIndex = -1;
+    tabloTik.value++;
+    _bildir();
   }
 
   // ---------- Loop Page ----------

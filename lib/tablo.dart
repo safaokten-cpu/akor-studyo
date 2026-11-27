@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'akor_yazi.dart';
 import 'durum.dart';
 import 'ortak.dart';
+import 'sarkilar.dart';
 import 'tema.dart';
 
 // Akor tablosu: 16 kutu, sayfa çubuğu, oynat/duraklat/durdur tuşları, vuruş çubuğu.
@@ -220,12 +221,10 @@ class TabloKarti extends StatelessWidget {
     );
   }
 
-  Widget _yaziDugmesi(BuildContext context) {
+  // Tablonun altındaki küçük düğmelerin ortak görünümü.
+  Widget _kucukDugme(IconData ikon, String yazi, VoidCallback onTap) {
     return GestureDetector(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => _YaziDialogu(d),
-      ),
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -233,14 +232,14 @@ class TabloKarti extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: renkKenar),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.text_snippet_outlined, size: 15, color: renkToprak),
-            SizedBox(width: 5),
+            Icon(ikon, size: 15, color: renkToprak),
+            const SizedBox(width: 5),
             Text(
-              'Yazıdan yükle',
-              style: TextStyle(
+              yazi,
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: renkToprak,
@@ -251,6 +250,27 @@ class TabloKarti extends StatelessWidget {
       ),
     );
   }
+
+  Widget _yaziDugmesi(BuildContext context) => _kucukDugme(
+        Icons.text_snippet_outlined,
+        'Yazıdan yükle',
+        () => showDialog<void>(
+          context: context,
+          builder: (_) => _YaziDialogu(d),
+        ),
+      );
+
+  Widget _kaydetDugmesi(BuildContext context) => _kucukDugme(
+        Icons.save_outlined,
+        'Kaydet',
+        () => sarkiKaydetPenceresi(context, d),
+      );
+
+  Widget _sarkilarDugmesi(BuildContext context) => _kucukDugme(
+        Icons.library_music_outlined,
+        'Şarkılarım',
+        () => sarkilarimPenceresi(context, d),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -286,16 +306,25 @@ class TabloKarti extends StatelessWidget {
             builder: (context, _) => _kontrolSatiri(),
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Dokun: seç. Basılı tut: sil. Ok: arpej.',
-                  style: TextStyle(fontSize: 11, color: renkToprakAcik),
-                ),
-              ),
-              _yaziDugmesi(context),
-            ],
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Dokun: seç. Basılı tut: sil. Ok: arpej.',
+              style: TextStyle(fontSize: 11, color: renkToprakAcik),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _kaydetDugmesi(context),
+                _sarkilarDugmesi(context),
+                _yaziDugmesi(context),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
         ],
