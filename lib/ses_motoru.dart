@@ -105,10 +105,14 @@ Future<void> sesOnekiYukle(String onek) {
   return _yuklemeler.putIfAbsent(onek, () async {
     final adlar = _onekDosyalari(onek);
     await _dosyalariYukle(adlar);
-    _eksikler[onek] = [
-      for (final ad in adlar)
-        if (!_kaynaklar.containsKey(ad)) ad,
-    ];
+    // Gitar setlerinde en alçak 4 nota (do_4 - re_diyez_4) zaten yok, bu yüzden
+    // gitar için eksik uyarısı verilmez. Davul ve piyano için verilir.
+    if (!onek.startsWith('gitar')) {
+      _eksikler[onek] = [
+        for (final ad in adlar)
+          if (!_kaynaklar.containsKey(ad)) ad,
+      ];
+    }
     _tamam.add(onek);
   });
 }
