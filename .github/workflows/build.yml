@@ -41,12 +41,24 @@ jobs:
           ls -la assets/sesler | grep -E "gitar_(clean|naylon|distortion)_mi_4" || true
           echo "--- biçim ---"
           file assets/sesler/gitar_clean_mi_4.wav assets/sesler/gitar_naylon_mi_4.wav assets/sesler/gitar_distortion_mi_4.wav || true
+          echo "=== DAVUL KIT KONTROLU (her kit icin 11 olmali) ==="
+          echo "davul_rock dosya sayisi: $(ls assets/sesler | grep -c '^davul_rock_')"
+          echo "davul_jazz dosya sayisi: $(ls assets/sesler | grep -c '^davul_jazz_')"
           echo "--- beklenmeyen adlar ---"
           ls assets/sesler | grep -vE '^(gitar|gitar_clean|gitar_naylon|gitar_distortion|piyano)_(do|do_diyez|re|re_diyez|mi|fa|fa_diyez|sol|sol_diyez|la|la_diyez|si)_[0-9]+\.wav$' | grep -v '^davul_' || true
       - run: flutter create --platforms=android --project-name akor_studyo .
       - run: flutter pub get
+      - name: Ikon olustur
+        run: |
+          if [ -f assets/ikon/ikon.png ] && [ -f assets/ikon/ikon_on.png ]; then
+            echo "Ikon dosyalari bulundu, uygulaniyor"
+            dart run flutter_launcher_icons
+          else
+            echo "assets/ikon/ikon.png veya ikon_on.png yok, varsayilan ikon kalacak"
+          fi
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: akor-studyo-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          
