@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
 import 'akor.dart';
+import 'arpej_penceresi.dart';
 import 'durum.dart';
 import 'kalip.dart';
 import 'katalog.dart';
 import 'ortak.dart';
 import 'tema.dart';
+
+// Listede tek tek görünmeyen arpej kalıpları: adı gerçek bir desen olanlar
+// ('Arpej p i m a' gibi). Bunlar Arpej düğmesinin penceresinden seçilir.
+// 'Arpej yayılan', 'Arpej bas ağırlıklı' gibi ölçüye uyum sağlayan kalıplar
+// listede kalır.
+bool _arpejDeseniKalibi(Kalip k) {
+  if (k.enstruman == 'davul') return false;
+  if (!k.ad.startsWith('Arpej ')) return false;
+  return desenTemizle(k.ad.substring(6)) != null;
+}
 
 // Sounds: enstrüman, tür, tarz ve kalıp seçip parçalara ekleme.
 class SoundsKarti extends StatelessWidget {
@@ -28,12 +39,21 @@ class SoundsKarti extends StatelessWidget {
     );
   }
 
-  Widget _icerik() {
-    final filtre = kaliplar
+  Widget _icerik(BuildContext context) {
+    // Listede görünen kalıplar (desen adlı arpejler hariç).
+    final gorunen = kaliplar
+        .where((k) => k.enstruman == d.secEns && !_arpejDeseniKalibi(k))
+        .toList();
+    final gorunenTarzlar = tarzlar
+        .where((x) => gorunen.any((k) => k.tarz == x))
+        .toList();
+    // Seçili tarzın görünen kalıbı kalmadıysa Tümü gibi davran.
+    final tarz = (d.secTarz == 'Tümü' || gorunenTarzlar.contains(d.secTarz))
+        ? d.secTarz
+        : 'Tümü';
+    final filtre = gorunen
         .where((k) =>
-            k.enstruman == d.secEns &&
-            k.olcuVar(d.olcu.ad) &&
-            (d.secTarz == 'Tümü' || k.tarz == d.secTarz))
+            k.olcuVar(d.olcu.ad) && (tarz == 'Tümü' || k.tarz == tarz))
         .toList();
     final gecerli = filtre.contains(d.secKalip)
         ? d.secKalip
@@ -83,12 +103,8 @@ class SoundsKarti extends StatelessWidget {
           runSpacing: 2,
           children: [
             // Sadece bu enstrümanda kalıbı olan tarzlar gösterilir.
-            for (final t in [
-              'Tümü',
-              ...tarzlar.where((x) =>
-                  kaliplar.any((k) => k.enstruman == d.secEns && k.tarz == x)),
-            ])
-              secChip(t, d.secTarz == t, () => d.tarzSec(t)),
+            for (final t in ['Tümü', ...gorunenTarzlar])
+              secChip(t, tarz == t, () => d.tarzSec(t)),
           ],
         ),
         const SizedBox(height: 10),
@@ -108,12 +124,29 @@ class SoundsKarti extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Center(
-          child: FilledButton.icon(
-            onPressed: (gecerli == null || d.parcalar.length >= enFazlaParca)
-                ? null
-                : () => d.parcaEkle(gecerli!),
-            icon: const Icon(Icons.add),
-            label: const Text('Parçalara ekle'),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 6,
+            children: [
+              FilledButton.icon(
+                onPressed:
+                    (gecerli == null || d.parcalar.length >= enFazlaParca)
+                        ? null
+                        : () => d.parcaEkle(gecerli!),
+                icon: const Icon(Icons.add),
+                label: const Text('Parçalara ekle'),
+              ),
+              // Arpej: hazır desenler ve elle yazma penceresi (gitar, piyano).
+              if (d.secEns != 'davul')
+                OutlinedButton.icon(
+                  onPressed: d.parcalar.length >= enFazlaParca
+                      ? null
+                      : () => arpejPenceresiAc(context, d),
+                  icon: const Icon(Icons.graphic_eq),
+                  label: const Text('Arpej'),
+                ),
+            ],
           ),
         ),
       ],
@@ -128,7 +161,7 @@ class SoundsKarti extends StatelessWidget {
         return KartKabugu(
           baslik: 'Sounds',
           ikon: Icons.library_music,
-          cocuklar: [_icerik()],
+          cocuklar: [_icerik(context)],
         );
       },
     );

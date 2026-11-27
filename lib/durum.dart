@@ -6,7 +6,7 @@ import 'ses.dart';
 import 'ses_motoru.dart';
 
 const hucreSayisi = 16;
-const enFazlaSayfa = 8;
+const enFazlaSayfa = 24;
 const enFazlaParca = 6;
 
 enum Durum { durdu, caliyor, duraklatildi }
@@ -78,6 +78,13 @@ class StudyoDurumu extends ChangeNotifier {
   int _oynatmaNo = 0;
   bool _kapali = false;
 
+  // Çalarken bir akor kutusuna dokunulunca çalma oraya atlar (-1 = istek yok).
+  int _atlaHedef = -1;
+  // Play'e basınca 3-2-1 geri sayım (her saniye bir tık) çalınsın mı?
+  bool geriSayimAcik = true;
+  // Geri sayım sırasında ekranda görünen sayı (0 = geri sayım yok).
+  final ValueNotifier<int> geriSayim = ValueNotifier<int>(0);
+
   // Hafif bildirimciler: çalarken tüm ekranı değil, sadece ilgili kısmı çizdirir.
   final ValueNotifier<int> adimNo = ValueNotifier<int>(-1);
   final ValueNotifier<int> kutuSlot = ValueNotifier<int>(0);
@@ -120,6 +127,7 @@ class StudyoDurumu extends ChangeNotifier {
     adimNo.dispose();
     kutuSlot.dispose();
     tabloTik.dispose();
+    geriSayim.dispose();
     super.dispose();
   }
 
@@ -229,8 +237,19 @@ class StudyoDurumu extends ChangeNotifier {
     akorOnizle(a, secEns == 'davul' ? 'gitar' : secEns);
   }
 
-  void hucreSec(int i) {
+  // atla: true ise çalarken bu kutuya dokunmak çalmayı oradan sürdürür
+  // (akor varsa). Duraklatılmışken Play oradan başlar.
+  void hucreSec(int i, {bool atla = true}) {
     secili = i;
+    final genel = aktifSayfa * hucreSayisi + i;
+    if (atla && akorAl(genel) != null) {
+      if (durum == Durum.caliyor) {
+        _atlaHedef = genel;
+      } else if (durum == Durum.duraklatildi) {
+        calanIndex = genel;
+        tabloTik.value++;
+      }
+    }
     _bildir();
   }
 
@@ -432,7 +451,7 @@ class StudyoDurumu extends ChangeNotifier {
     final hamSayfalar = v['sayfalar'];
     final hamDesenler = v['desenler'];
     if (hamSayfalar is List) {
-      for (int s = 0; s < hamSayfalar.length; s++) {
+      for (int s = 0; s < hamSayfalar.length && s < enFazlaSayfa; s++) {
         final sayfa = List<Akor?>.filled(hucreSayisi, null);
         final desen = List<String?>.filled(hucreSayisi, null);
         final ham = hamSayfalar[s];
@@ -585,7 +604,55 @@ class StudyoDurumu extends ChangeNotifier {
     }
   }
 
+  // Sounds'taki Arpej penceresinden: seçilen ya da yazılan desenle yeni bir
+  // gitar/piyano parçası ekler. Desen her ölçüde aynı çalar, akor kutusunun
+  // süresi desenin uzunluğuna uyar.
+  void arpejParcaEkle(String desen) {
+    if (parcalar.length >= enFazlaParca) return;
+    final ens = secEns == 'davul' ? 'gitar' : secEns;
+    final ad = desen.replaceAll(' ', '');
+    parcaEkle(Kalip(
+      'Arpej $ad',
+      ens,
+      'Akustik',
+      {for (final o in olculer) o.ad: desen},
+    ));
+  }
+
   // ---------- Çalma ----------
+
+  void geriSayimDegistir() {
+    geriSayimAcik = !geriSayimAcik;
+    _bildir();
+  }
+
+  // Saat'e göre hedef zamana (milisaniye) kadar bekler. Önce kaba bekleme
+  // yapar, son birkaç milisaniyeyi sık sık kontrol ederek bekler. Böylece
+  // vuruşlar zamanlayıcının gecikmesinden etkilenmez, ritim eşit akar.
+  Future<void> _hedefeKadarBekle(Stopwatch saat, double hedefMs) async {
+    final kalan = hedefMs - saat.elapsedMicroseconds / 1000.0;
+    if (kalan > 12) {
+      await Future.delayed(Duration(milliseconds: (kalan - 8).floor()));
+    }
+    while (saat.elapsedMicroseconds / 1000.0 < hedefMs) {
+      await Future.delayed(Duration.zero);
+    }
+  }
+
+  // 3-2-1: her saniye bir tık sesi (standart kitin hi-hat sesi) ve ekranda sayı.
+  // Geri sayım bitince true döner. Arada durdurulursa false döner.
+  Future<bool> _geriSayimCal(int benimNo) async {
+    final saat = Stopwatch()..start();
+    for (int n = 3; n >= 1; n--) {
+      if (benimNo != _oynatmaNo || _kapali) return false;
+      geriSayim.value = n;
+      sesCal('davul_hihat', 1.0, 14);
+      await _hedefeKadarBekle(saat, (4 - n) * 1000.0);
+    }
+    if (benimNo != _oynatmaNo || _kapali) return false;
+    geriSayim.value = 0;
+    return true;
+  }
 
   Future<void> oynat() async {
     if (durum == Durum.caliyor) return;
@@ -594,15 +661,33 @@ class StudyoDurumu extends ChangeNotifier {
     // henüz başlamadığı için tempoyu etkilemez).
     await _calacakTurleriHazirla();
     if (benimNo != _oynatmaNo || _kapali) return;
+    final son0 = sonDoluIndex();
+    if (son0 < 0) return;
     int i = (durum == Durum.duraklatildi && calanIndex >= 0) ? calanIndex : 0;
+    if (i > son0) i = 0;
+    _atlaHedef = -1;
     durum = Durum.caliyor;
+    // Başlangıç kutusu geri sayım sırasında da görünsün.
+    calanIndex = i;
+    aktifSayfa = i ~/ hucreSayisi;
+    tabloTik.value++;
     _bildir();
+    if (geriSayimAcik) {
+      final devam = await _geriSayimCal(benimNo);
+      if (!devam) return;
+    }
     final saat = Stopwatch()..start();
     double hedefMs = 0;
+    // Davulun kendi ölçü sayacı: akor kutusu değişince başa dönmez, davul
+    // ölçüsü kesintisiz akar. Başlangıçta, atlamada ve döngü başında sıfırlanır.
+    int davulSayac = 0;
     while (benimNo == _oynatmaNo && !_kapali) {
       final son = sonDoluIndex();
       if (son < 0) break;
-      if (i > son) i = 0;
+      if (i > son) {
+        i = 0;
+        davulSayac = 0;
+      }
       final akor = akorAl(i);
       final sayfa = i ~/ hucreSayisi;
       // Bu akor kutusuna özel arpej seçilmişse melodik parçalar onu çalar.
@@ -632,22 +717,34 @@ class StudyoDurumu extends ChangeNotifier {
       final slotlar = enUzun > 0 ? enUzun : olcu.slot;
       kutuSlot.value = slotlar;
 
+      bool atla = false;
       for (int adim = 0; adim < slotlar; adim++) {
         if (benimNo != _oynatmaNo || _kapali) return;
+        // Çalarken bir kutuya dokunulduysa bu vuruşta oraya atla.
+        if (_atlaHedef >= 0) {
+          atla = true;
+          break;
+        }
         // Önce ses: çizimden hiçbir şey sesi bekletmesin.
+        // Davul her vuruşta önce çalınır, ritim sabit kalsın.
         if (akor != null) {
-          planlar.forEach((p, adimlar) {
-            // Kısa kalıp tekrar eder, uzun kalıp (davul) kutu boyunda kesilir.
-            final olaylar = adimlar[adim % adimlar.length];
-            if (olaylar.isEmpty) return;
-            // Gitar parçası kendi türüyle çalsın.
-            if (p.kalip.enstruman == 'gitar') {
-              aktifGitarTuru = gitarTuruAl(p);
-            } else if (p.kalip.enstruman == 'davul') {
-              aktifDavulTuru = davulTuruAl(p);
-            }
-            kalipAdimiCal(calKaliplari[p]!, akor, olaylar, p.ses);
-          });
+          for (final davulTuru in const [true, false]) {
+            planlar.forEach((p, adimlar) {
+              final davulParca = p.kalip.enstruman == 'davul';
+              if (davulParca != davulTuru) return;
+              // Davul kendi ölçü sayacıyla, diğerleri kutunun adımıyla çalar.
+              final sira = davulParca ? davulSayac : adim;
+              final olaylar = adimlar[sira % adimlar.length];
+              if (olaylar.isEmpty) return;
+              // Gitar parçası kendi türüyle çalsın.
+              if (p.kalip.enstruman == 'gitar') {
+                aktifGitarTuru = gitarTuruAl(p);
+              } else if (davulParca) {
+                aktifDavulTuru = davulTuruAl(p);
+              }
+              kalipAdimiCal(calKaliplari[p]!, akor, olaylar, p.ses);
+            });
+          }
         }
         adimNo.value = adim;
         // Kutu değişince sadece tabloyu yeniden çiz (tüm ekranı değil).
@@ -656,11 +753,15 @@ class StudyoDurumu extends ChangeNotifier {
           aktifSayfa = sayfa;
           tabloTik.value++;
         }
+        davulSayac++;
         hedefMs += 30000 / tempo;
-        final bekle = (hedefMs - saat.elapsedMilliseconds).round();
-        if (bekle > 0) {
-          await Future.delayed(Duration(milliseconds: bekle));
-        }
+        await _hedefeKadarBekle(saat, hedefMs);
+      }
+      if (atla) {
+        i = _atlaHedef;
+        _atlaHedef = -1;
+        davulSayac = 0;
+        continue;
       }
       i++;
     }
@@ -676,6 +777,8 @@ class StudyoDurumu extends ChangeNotifier {
   void duraklat() {
     if (durum != Durum.caliyor) return;
     _oynatmaNo++;
+    _atlaHedef = -1;
+    geriSayim.value = 0;
     adimNo.value = -1;
     kutuSlot.value = 0;
     durum = Durum.duraklatildi;
@@ -684,6 +787,8 @@ class StudyoDurumu extends ChangeNotifier {
 
   void durdur() {
     _oynatmaNo++;
+    _atlaHedef = -1;
+    geriSayim.value = 0;
     adimNo.value = -1;
     kutuSlot.value = 0;
     durum = Durum.durdu;

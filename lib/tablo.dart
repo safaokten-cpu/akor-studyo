@@ -67,7 +67,7 @@ class TabloKarti extends StatelessWidget {
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
-                        d.hucreSec(i);
+                        d.hucreSec(i, atla: false);
                         _desenSec(context, i);
                       },
                       child: SizedBox(
@@ -155,8 +155,27 @@ class TabloKarti extends StatelessWidget {
 
   Widget _vurusCubugu() {
     return ListenableBuilder(
-      listenable: Listenable.merge([d.adimNo, d.kutuSlot]),
+      listenable: Listenable.merge([d.adimNo, d.kutuSlot, d.geriSayim]),
       builder: (context, _) {
+        // Geri sayım sırasında vuruş çubuğunun yerinde 3, 2, 1 görünür.
+        final g = d.geriSayim.value;
+        if (g > 0) {
+          return SizedBox(
+            height: 16,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Hazır  $g',
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: renkSonbahar,
+                ),
+              ),
+            ),
+          );
+        }
         final n = d.kutuSlot.value > 0 ? d.kutuSlot.value : d.olcu.slot;
         final a = d.adimNo.value;
         return SizedBox(
@@ -266,6 +285,16 @@ class TabloKarti extends StatelessWidget {
         () => sarkiKaydetPenceresi(context, d),
       );
 
+  // 3-2-1 geri sayımı açıp kapatır.
+  Widget _geriSayimDugmesi() => ListenableBuilder(
+        listenable: d,
+        builder: (context, _) => _kucukDugme(
+          Icons.timer_outlined,
+          d.geriSayimAcik ? '3-2-1 açık' : '3-2-1 kapalı',
+          d.geriSayimDegistir,
+        ),
+      );
+
   Widget _sarkilarDugmesi(BuildContext context) => _kucukDugme(
         Icons.library_music_outlined,
         'Şarkılarım',
@@ -309,7 +338,7 @@ class TabloKarti extends StatelessWidget {
           const Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Dokun: seç. Basılı tut: sil. Ok: arpej.',
+              'Dokun: seç (çalarken oradan devam eder). Basılı tut: sil. Ok: arpej.',
               style: TextStyle(fontSize: 11, color: renkToprakAcik),
             ),
           ),
@@ -323,6 +352,7 @@ class TabloKarti extends StatelessWidget {
                 _kaydetDugmesi(context),
                 _sarkilarDugmesi(context),
                 _yaziDugmesi(context),
+                _geriSayimDugmesi(),
               ],
             ),
           ),
