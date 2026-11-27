@@ -8,7 +8,20 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_soloud: ^3.0.0
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
 flutter:
   uses-material-design: true
   assets:
     - assets/sesler/
+
+# Uygulama ikonu: derleme sırasında build.yml içinde otomatik uygulanır.
+# ikon.png = klasik ikon, ikon_on.png = uyarlanabilir ikonun ön katmanı.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/ikon/ikon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#E6EAEF"
+  adaptive_icon_foreground: "assets/ikon/ikon_on.png"
+  adaptive_icon_foreground_inset: 0
